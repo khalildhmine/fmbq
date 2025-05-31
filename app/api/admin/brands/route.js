@@ -1,5 +1,5 @@
 import { connectToDatabase } from '@/helpers/db'
-import Brand from '@/models/brand'
+import { Brand } from '@/models'
 import { NextResponse } from 'next/server'
 
 export async function POST(req) {
