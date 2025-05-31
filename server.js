@@ -26,14 +26,17 @@ app.prepare().then(() => {
     path: '/api/socketio',
     addTrailingSlash: false,
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      origin: '*',
       methods: ['GET', 'POST'],
       credentials: true,
     },
+    transports: ['websocket', 'polling'],
     connectionStateRecovery: {
       maxDisconnectionDuration: 2 * 60 * 1000,
       skipMiddlewares: true,
     },
+    pingTimeout: 30000,
+    pingInterval: 10000,
   })
 
   // Store io instance globally
@@ -55,6 +58,11 @@ app.prepare().then(() => {
     socket.on('newOrder', order => {
       console.log('New order received:', order.orderId)
       io.emit('orderNotification', order)
+    })
+
+    // Handle heartbeat
+    socket.on('heartbeat', data => {
+      socket.emit('heartbeat_ack', { received: data.timestamp, server_time: Date.now() })
     })
   })
 

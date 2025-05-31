@@ -7,6 +7,24 @@ const NotificationContext = createContext()
 
 const STORAGE_KEY = 'dashboard_notifications'
 
+const SOCKET_CONFIG = {
+  path: '/api/socketio',
+  addTrailingSlash: false,
+  reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 2000,
+  reconnectionDelayMax: 10000,
+  timeout: 20000,
+  transports: ['websocket', 'polling'],
+  forceNew: true,
+  autoConnect: true,
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+}
+
 export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([])
   const [socket, setSocket] = useState(null)
@@ -15,13 +33,7 @@ export function NotificationProvider({ children }) {
   useEffect(() => {
     console.log('Initializing socket connection...')
 
-    const newSocket = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
-      path: '/api/socketio',
-      addTrailingSlash: false,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    })
+    const newSocket = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', SOCKET_CONFIG)
 
     newSocket.on('connect', () => {
       console.log('Socket connected:', newSocket.id)

@@ -2,12 +2,27 @@ import { io } from 'socket.io-client'
 
 let socket = null
 
+const SOCKET_CONFIG = {
+  path: '/api/socketio',
+  addTrailingSlash: false,
+  reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 2000,
+  reconnectionDelayMax: 10000,
+  timeout: 20000,
+  transports: ['websocket', 'polling'],
+  forceNew: true,
+  autoConnect: true,
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+}
+
 export const initSocket = () => {
   if (!socket) {
-    socket = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
-      path: '/api/socketio',
-      addTrailingSlash: false,
-    })
+    socket = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', SOCKET_CONFIG)
 
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id)

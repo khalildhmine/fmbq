@@ -4,13 +4,23 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import io from 'socket.io-client'
 import axios from 'axios'
 
-const API_URL = 'http://localhost:3000'
+const API_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const SOCKET_CONFIG = {
+  path: '/api/socketio',
   reconnectionAttempts: 10,
   reconnectionDelay: 2000,
   reconnectionDelayMax: 10000,
   randomizationFactor: 0.5,
   timeout: 20000,
+  transports: ['websocket', 'polling'],
+  forceNew: true,
+  autoConnect: true,
+  addTrailingSlash: false,
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
 }
 
 // Mock socket implementation as fallback
@@ -123,17 +133,11 @@ const useSocket = (roomId, userId) => {
       clearTimeout(connectionTimerRef.current)
     }
 
-    // We'll configure with more aggressive reconnection
-    const socketInstance = io(`${API_URL}`, {
+    // Configure socket with proper options
+    const socketInstance = io(API_URL, {
+      ...SOCKET_CONFIG,
       query: { roomId, userId },
-      reconnectionAttempts: 15, // Increased from 10
-      reconnectionDelay: 1000, // Start with shorter delay
-      reconnectionDelayMax: 8000, // Don't wait too long between attempts
-      randomizationFactor: 0.3, // Less randomization for more predictable behavior
-      timeout: 15000, // Balance between speed and reliability
-      transports: ['websocket', 'polling'], // Try WebSocket first, fallback to polling
-      autoConnect: true,
-      forceNew: connectionAttempts > 3, // Force new connection if we've tried several times
+      forceNew: connectionAttempts > 3,
     })
 
     socketRef.current = socketInstance
