@@ -3,14 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-import {
-  BigLoading,
-  ConfirmDeleteModal,
-  ConfirmUpdateModal,
-  HandleResponse,
-  PageContainer,
-  SliderForm,
-} from 'components'
+import BigLoading from '@/components/loading/BigLoading'
+import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal'
+import ConfirmUpdateModal from '@/components/modals/ConfirmUpdateModal'
+import HandleResponse from '@/components/common/HandleResponse'
+import PageContainer from '@/components/common/PageContainer'
+import SliderForm from '@/components/forms/SliderForm'
 
 import { useDisclosure } from 'hooks'
 

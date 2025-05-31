@@ -1,4 +1,6 @@
-import { Icons, Skeleton, WithAddressModal } from 'components'
+import Icons from './common/Icons'
+import Skeleton from './common/Skeleton'
+import WithAddressModal from './common/WithAddressModal'
 
 const BasicAddressBar = ({ addressModalProps }) => {
   //? Props

@@ -1,4 +1,4 @@
-import { admin } from '../config/firebase.config'
+import { adminApp } from '../config/firebase.config'
 import { Expo } from 'expo-server-sdk'
 
 // Initialize Expo SDK
@@ -29,6 +29,12 @@ export class NotificationService {
         data,
         priority: 'high',
         channelId: 'default',
+      }
+
+      // Skip if Firebase is not configured
+      if (!adminApp) {
+        console.warn('Firebase is not configured. Skipping push notification.')
+        return null
       }
 
       console.log('Created notification payload:', notification)

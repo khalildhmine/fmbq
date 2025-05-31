@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Icons } from '@/components'
+import Icons from '@/components/common/Icons'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({

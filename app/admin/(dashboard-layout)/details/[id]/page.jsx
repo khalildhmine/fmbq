@@ -10,13 +10,13 @@ import {
   useUpdateDetailsMutation,
 } from '@/store/services'
 
-import { BigLoading } from '@/components/loading/BigLoading.jsx'
-import { PageContainer } from '@/components/common/PageContainer.jsx'
-import { ConfirmDeleteModal } from '@/components/modals/ConfirmDeleteModal.js'
-import { ConfirmUpdateModal } from '@/components/modals/ConfirmUpdateModal.jsx'
-import { DetailsList } from '@/components/DetailsList.js'
-import { HandleResponse } from '@/components/common/HandleResponse.js'
-import { Button } from '@/components/common/Buttons.js'
+import BigLoading from '@/components/loading/BigLoading'
+import PageContainer from '@/components/common/PageContainer'
+import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal'
+import ConfirmUpdateModal from '@/components/modals/ConfirmUpdateModal'
+import DetailsList from '@/components/DetailsList'
+import HandleResponse from '@/components/common/HandleResponse'
+import { Button } from '@/components/common/Buttons'
 
 import { useAppDispatch, useDisclosure } from '@/hooks'
 import { SubmitHandler, useForm } from 'react-hook-form'

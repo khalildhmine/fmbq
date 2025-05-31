@@ -3,15 +3,13 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-import {
-  Icons,
-  DiscountProduct,
-  ProductPrice,
-  EmptySearchList,
-  ShowWrapper,
-  Modal,
-  ResponsiveImage,
-} from 'components'
+import Icons from '@/components/common/Icons'
+import DiscountProduct from '@/components/product/DiscountProduct'
+import ProductPrice from '@/components/product/ProductPrice'
+import EmptySearchList from '@/components/emptyList/EmptySearchList'
+import ShowWrapper from '@/components/common/ShowWrapper'
+import Modal from '@/components/common/Modal'
+import ResponsiveImage from '@/components/common/ResponsiveImage'
 
 import { truncate } from 'utils'
 

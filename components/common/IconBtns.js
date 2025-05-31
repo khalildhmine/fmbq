@@ -1,4 +1,4 @@
-import { Plus, Trash, ArrowLeft } from 'lucide-react'
+import { Plus, Trash, ArrowLeft, PencilLine } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export const AddIconBtn = ({ onClick }) => (
@@ -33,3 +33,13 @@ export const BackIconBtn = () => {
     </button>
   )
 }
+
+export const EditIconBtn = ({ onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="p-2 text-white bg-blue-500 rounded-full hover:bg-blue-600 transition-colors"
+  >
+    <PencilLine size={16} />
+  </button>
+)

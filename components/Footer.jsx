@@ -1,6 +1,8 @@
 import Image from 'next/image'
-
-import { Icons, Services, LogoChina, ResponsiveImage } from 'components'
+import Icons from './common/Icons'
+import Services from './Services'
+import LogoChina from './svgs/logoChina.svg'
+import ResponsiveImage from './common/ResponsiveImage'
 import { siteTitle } from '@/utils'
 import Link from 'next/link'
 

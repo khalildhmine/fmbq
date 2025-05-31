@@ -1,4 +1,4 @@
-import { EditIconBtn } from 'components/common/IconBtns'
+import { EditIconBtn } from '@/components/common/IconBtns'
 import moment from 'moment-jalaali'
 import Link from 'next/link'
 

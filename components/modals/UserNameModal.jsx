@@ -4,7 +4,10 @@ import { nameSchema } from 'utils'
 
 import { useEditUserMutation } from '@/store/services'
 
-import { TextField, SubmitModalBtn, Modal, HandleResponse } from 'components'
+import TextField from '@/components/common/TextField'
+import SubmitModalBtn from '@/components/common/SubmitModalBtn'
+import Modal from '@/components/common/Modal'
+import HandleResponse from '@/components/common/HandleResponse'
 
 const UserNameModal = props => {
   //? Props

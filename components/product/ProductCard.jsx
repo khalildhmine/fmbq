@@ -1,11 +1,9 @@
-import {
-  Icons,
-  SpecialSell,
-  DiscountProduct,
-  ProductPrice,
-  Depot,
-  ResponsiveImage,
-} from 'components'
+import Icons from '@/components/common/Icons'
+import ResponsiveImage from '@/components/common/ResponsiveImage'
+import SpecialSell from '@/components/product/SpecialSell'
+import DiscountProduct from '@/components/product/DiscountProduct'
+import ProductPrice from '@/components/product/ProductPrice'
+import Depot from '@/components/product/Depot'
 import { truncate } from 'utils'
 
 const ProductCard = props => {

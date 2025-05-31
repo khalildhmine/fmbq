@@ -1,5 +1,13 @@
 import Link from 'next/link'
-import { Icons, Search, Signup, Cart, Navbar, Sidebar, AddressBar, LogoH } from 'components'
+import Icons from '@/components/common/Icons'
+import Search from '@/components/Search'
+import Signup from '@/components/Signup'
+import Cart from '@/components/cart/Cart'
+import Navbar from '@/components/Navbar'
+import Sidebar from '@/components/Sidebar'
+import AddressBar from '@/components/AddressBar'
+import LogoH from '@/components/svgs/logo-h.svg'
+
 export default function Header() {
   return (
     <>

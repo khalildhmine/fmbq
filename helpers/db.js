@@ -135,3 +135,13 @@ export async function checkDatabaseHealth() {
     return { status: 'error', message: error.message }
   }
 }
+
+// Export the db object
+export const db = {
+  connect: connectToDatabase,
+  isConnected: isDbConnected,
+  close: closeDbConnection,
+  checkHealth: checkDatabaseHealth,
+}
+
+export default db

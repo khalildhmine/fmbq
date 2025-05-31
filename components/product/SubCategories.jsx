@@ -1,6 +1,6 @@
 import Link from 'next/link'
-
-import { ResponsiveImage, SubCategoriesSkeleton } from 'components'
+import ResponsiveImage from '@/components/common/ResponsiveImage'
+import SubCategoriesSkeleton from '@/components/skeleton/SubCategoriesSkeleton'
 
 const SubCategories = props => {
   //? Props

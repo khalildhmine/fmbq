@@ -10,7 +10,12 @@ import { ratingStatus, reviewSchema } from 'utils'
 import { SubmitHandler, useFieldArray, useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 
-import { Icons, TextField, DisplayError, SubmitModalBtn, Modal, HandleResponse } from 'components'
+import Icons from '@/components/common/Icons'
+import TextField from '@/components/common/TextField'
+import DisplayError from '@/components/common/DisplayError'
+import SubmitModalBtn from '@/components/common/SubmitModalBtn'
+import Modal from '@/components/common/Modal'
+import HandleResponse from '@/components/common/HandleResponse'
 
 const ReviewModal = props => {
   //? Props
