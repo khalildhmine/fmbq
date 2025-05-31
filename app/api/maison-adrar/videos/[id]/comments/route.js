@@ -1,7 +1,7 @@
 import { connectToDatabase } from '@/helpers/db'
 import { validateToken } from '@/helpers/auth'
 import { NextResponse } from 'next/server'
-import VideoComment from '@/models/videoComment'
+import VideoComment from '@/models/VideoComment'
 
 // Get comments for a video
 export async function GET(request, { params }) {
