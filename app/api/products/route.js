@@ -1,11 +1,11 @@
 import joi from 'joi'
 import { ObjectId } from 'mongodb'
-import { connectToDatabase } from '@/helpers/db'
+import { connectToDatabase } from '@/lib/mongoose'
 import { getQuery } from '@/helpers/api'
 import { NextResponse } from 'next/server'
-import Category from '@/models/Category'
+import { Category } from '@/models'
 import { productRepo } from '@/helpers/db-repo/product-repo'
-import Product from '@/models/Product' // Add this import
+import { Product } from '@/models'
 
 // Helper function to create proper Response objects
 const setJson = (data, status = 200) => {
@@ -324,13 +324,43 @@ const getProductsByCategories = apiHandler(async req => {
 })
 
 export async function GET(req) {
-  const response = await getAllProduct(req)
-  // Ensure we return a Response object
-  if (response instanceof Response || response instanceof NextResponse) {
-    return response
+  try {
+    await connectToDatabase()
+
+    const { searchParams } = new URL(req.url)
+    const limit = searchParams.get('limit') || 10
+    const page = searchParams.get('page') || 1
+    const category = searchParams.get('category')
+    const search = searchParams.get('search')
+
+    // Build query
+    const query = {}
+    if (category) {
+      query.category = category
+    }
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ]
+    }
+
+    const products = await Product.find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip((page - 1) * limit)
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        products,
+        total: await Product.countDocuments(query),
+      },
+    })
+  } catch (error) {
+    console.error('Error in products API:', error)
+    return NextResponse.json({ success: false, error: 'Failed to fetch products' }, { status: 500 })
   }
-  // If getAllProduct didn't return a Response, create one
-  return NextResponse.json(response)
 }
 
 export async function POST(request) {

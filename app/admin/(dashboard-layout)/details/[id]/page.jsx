@@ -1,9 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-
 import { useRouter } from 'next/navigation'
-
-import { showAlert } from 'store'
+import { showAlert } from '@/store'
 
 import {
   useCreateDetailsMutation,
@@ -12,19 +10,15 @@ import {
   useUpdateDetailsMutation,
 } from '@/store/services'
 
-import {
-  BigLoading,
-  Button,
-  ConfirmDeleteModal,
-  ConfirmUpdateModal,
-  DetailsList,
-  HandleResponse,
-  PageContainer,
-} from 'components'
-import { Tab } from '@headlessui/react'
+import { BigLoading } from '@/components/loading/BigLoading.jsx'
+import { PageContainer } from '@/components/common/PageContainer.jsx'
+import { ConfirmDeleteModal } from '@/components/modals/ConfirmDeleteModal.js'
+import { ConfirmUpdateModal } from '@/components/modals/ConfirmUpdateModal.jsx'
+import { DetailsList } from '@/components/DetailsList.js'
+import { HandleResponse } from '@/components/common/HandleResponse.js'
+import { Button } from '@/components/common/Buttons.js'
 
-import { useAppDispatch, useDisclosure } from 'hooks'
-
+import { useAppDispatch, useDisclosure } from '@/hooks'
 import { SubmitHandler, useForm } from 'react-hook-form'
 import { useTitle, useUrlQuery } from '@/hooks'
 
@@ -39,6 +33,7 @@ const DetailsContentPage = ({ params: { id } }) => {
   const { back } = useRouter()
   const query = useUrlQuery()
   const dispatch = useAppDispatch()
+  const [activeTab, setActiveTab] = useState(0)
 
   const categoryId = id
   const categoryName = query.category_name
@@ -195,6 +190,68 @@ const DetailsContentPage = ({ params: { id } }) => {
 
   useTitle(`品类规格及特点 - ${categoryName ? categoryName : ''}`)
 
+  // Custom tab panel renderer
+  const renderTabPanel = () => {
+    switch (activeTab) {
+      case 0:
+        return (
+          <div className="space-y-3">
+            <p className="mb-2">选择类型：</p>
+            <div className="flex items-center gap-x-1">
+              <input
+                type="radio"
+                id="none"
+                value="none"
+                className="mr-1"
+                {...register('optionsType')}
+              />
+              <label htmlFor="none">默认</label>
+            </div>
+            <div className="flex items-center gap-x-1">
+              <input
+                type="radio"
+                id="colors"
+                value="colors"
+                className="mr-1"
+                {...register('optionsType')}
+              />
+              <label htmlFor="colors">根据颜色</label>
+            </div>
+            <div className="flex items-center gap-x-1">
+              <input
+                type="radio"
+                id="sizes"
+                value="sizes"
+                className="mr-1"
+                {...register('optionsType')}
+              />
+              <label htmlFor="sizes">根据尺寸</label>
+            </div>
+          </div>
+        )
+      case 1:
+        return (
+          <DetailsList
+            name="info"
+            control={control}
+            register={register}
+            categoryName={categoryName}
+          />
+        )
+      case 2:
+        return (
+          <DetailsList
+            name="specification"
+            control={control}
+            register={register}
+            categoryName={categoryName}
+          />
+        )
+      default:
+        return null
+    }
+  }
+
   //? Render(s)
   return (
     <>
@@ -263,86 +320,32 @@ const DetailsContentPage = ({ params: { id } }) => {
               }
               className="p-3 space-y-6"
             >
-              <Tab.Group>
-                <Tab.List className="flex space-x-1 rounded-xl bg-slate-200 p-1">
-                  {tabListNames.map(item => (
-                    <Tab
-                      key={item.id}
-                      className={({ selected }) =>
-                        `tab
-                         ${
-                           selected
-                             ? 'bg-white shadow'
-                             : 'text-blue-400 hover:bg-white/[0.12] hover:text-blue-600'
-                         }
-                        `
-                      }
-                    >
-                      {item.name}
-                    </Tab>
-                  ))}
-                </Tab.List>
+              {/* Custom Tab Implementation */}
+              <div className="flex space-x-1 rounded-xl bg-slate-200 p-1">
+                {tabListNames.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    type="button"
+                    className={`w-full rounded-lg py-2.5 text-sm font-medium leading-5 transition-all duration-200
+                      ${
+                        activeTab === tab.id
+                          ? 'bg-white text-blue-700 shadow'
+                          : 'text-blue-400 hover:bg-white/[0.12] hover:text-blue-600'
+                      }`}
+                  >
+                    {tab.name}
+                  </button>
+                ))}
+              </div>
 
-                <Tab.Panels>
-                  <Tab.Panel>
-                    <div className="space-y-3">
-                      <p className="mb-2">选择类型：</p>
-                      <div className="flex items-center gap-x-1">
-                        <input
-                          type="radio"
-                          id="none"
-                          value="none"
-                          className="mr-1"
-                          {...register('optionsType')}
-                        />
-                        <label htmlFor="none">默认</label>
-                      </div>
-                      <div className="flex items-center gap-x-1">
-                        <input
-                          type="radio"
-                          id="colors"
-                          value="colors"
-                          className="mr-1"
-                          {...register('optionsType')}
-                        />
-                        <label htmlFor="colors">根据颜色</label>
-                      </div>
-                      <div className="flex items-center gap-x-1">
-                        <input
-                          type="radio"
-                          id="sizes"
-                          value="sizes"
-                          className="mr-1"
-                          {...register('optionsType')}
-                        />
-                        <label htmlFor="sizes">根据尺寸</label>
-                      </div>
-                    </div>
-                  </Tab.Panel>
+              <div className="mt-4">{renderTabPanel()}</div>
 
-                  <Tab.Panel>
-                    <DetailsList
-                      name="info"
-                      control={control}
-                      register={register}
-                      categoryName={categoryName}
-                    />
-                  </Tab.Panel>
-                  <Tab.Panel>
-                    <DetailsList
-                      name="specification"
-                      control={control}
-                      register={register}
-                      categoryName={categoryName}
-                    />
-                  </Tab.Panel>
-                </Tab.Panels>
-              </Tab.Group>
               <div className="flex justify-center gap-x-4">
                 {mode === 'edit' ? (
                   <>
                     <Button
-                      className="bg-amber-500 "
+                      className="bg-amber-500"
                       isRounded={true}
                       type="submit"
                       isLoading={isLoadingUpdate}
@@ -360,7 +363,7 @@ const DetailsContentPage = ({ params: { id } }) => {
                   </>
                 ) : (
                   <Button
-                    className="bg-green-500 "
+                    className="bg-green-500"
                     isRounded={true}
                     type="submit"
                     isLoading={isLoadingCreate}

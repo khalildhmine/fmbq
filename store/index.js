@@ -8,8 +8,6 @@ import filtersReducer from './slices/filters.slice'
 import cartReducer from './slices/cart.slice'
 import chatReducer from './slices/chat.slice'
 import apiSlice from './services/api'
-import { sliderApi } from '../services/sliderApi'
-import { api } from './api'
 
 // Debug middleware
 const debugMiddleware = store => next => action => {
@@ -27,8 +25,6 @@ const rootReducer = combineReducers({
   filters: filtersReducer,
   chat: chatReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
-  [sliderApi.reducerPath]: sliderApi.reducer,
-  [api.reducerPath]: api.reducer,
 })
 
 export const store = configureStore({
@@ -45,13 +41,11 @@ export const store = configureStore({
           'payload.request',
         ],
         // Ignore these paths in the state
-        ignoredPaths: [apiSlice.reducerPath, sliderApi.reducerPath, api.reducerPath],
+        ignoredPaths: [apiSlice.reducerPath],
       },
       immutableCheck: { warnAfter: 128 },
     })
       .concat(apiSlice.middleware)
-      .concat(sliderApi.middleware)
-      .concat(api.middleware)
       .concat(process.env.NODE_ENV !== 'production' ? [debugMiddleware] : []),
   devTools: process.env.NODE_ENV !== 'production',
 })

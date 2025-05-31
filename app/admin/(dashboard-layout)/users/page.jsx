@@ -20,15 +20,29 @@ import {
   Save,
 } from 'lucide-react'
 import Link from 'next/link'
+import { Suspense } from 'react'
+import dynamic from 'next/dynamic'
+import DashboardLayout from '@/components/Layouts/DashboardLayout'
 
 import { useGetUsersQuery, useDeleteUserMutation } from '@/store/services'
 import { useDisclosure, useChangeRoute, useTitle } from '@/hooks'
 
-export default function UsersPage() {
+// Dynamically import components that might use client-side hooks
+const DynamicPageContainer = dynamic(() => import('@/components/common/PageContainer'), {
+  ssr: false,
+  loading: () => (
+    <div className="animate-pulse">
+      <div className="h-8 bg-gray-200 rounded w-1/4 mb-4" />
+      <div className="h-96 bg-gray-200 rounded" />
+    </div>
+  ),
+})
+
+const UsersContent = () => {
   useTitle('Users Management')
 
   // Router and Navigation
-  const { replace } = useRouter()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const page = searchParams.get('page')
   const changeRoute = useChangeRoute()
@@ -233,7 +247,7 @@ export default function UsersPage() {
   }
 
   return (
-    <main className="p-6">
+    <DynamicPageContainer title="User Management">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -760,6 +774,18 @@ export default function UsersPage() {
           )}
         </AnimatePresence>
       </div>
-    </main>
+    </DynamicPageContainer>
   )
 }
+
+const UsersPage = () => {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={<div>Loading...</div>}>
+        <UsersContent />
+      </Suspense>
+    </DashboardLayout>
+  )
+}
+
+export default UsersPage

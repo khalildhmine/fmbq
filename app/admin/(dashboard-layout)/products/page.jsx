@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -34,8 +34,9 @@ import ProductImage from '@/components/common/ProductImage'
 import ProductsTable from '@/components/admin/ProductsTable.jsx'
 import { useDisclosure, useChangeRoute } from 'hooks'
 import { useTitle, useUrlQuery } from '@/hooks'
+import DashboardLayout from '@/components/Layouts/DashboardLayout'
 
-const ProductsPage = () => {
+const ProductsContent = () => {
   useTitle('Products Management')
 
   const { push } = useRouter()
@@ -808,6 +809,16 @@ const ProductsPage = () => {
         </PageContainer>
       </motion.div>
     </>
+  )
+}
+
+const ProductsPage = () => {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={<div>Loading...</div>}>
+        <ProductsContent />
+      </Suspense>
+    </DashboardLayout>
   )
 }
 

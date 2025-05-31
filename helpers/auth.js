@@ -65,7 +65,49 @@ export const validateToken = async request => {
   }
 }
 
+// Middleware to authenticate requests
+export const authenticate = async (req, res, next) => {
+  try {
+    const userId = await verifyToken(req, true)
+    if (!userId) {
+      throw new Error('Authentication required')
+    }
+    req.userId = userId
+    return next()
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+}
+
+// Helper function to check if user is authenticated
+export const isAuthenticated = async req => {
+  try {
+    const userId = await verifyToken(req, false)
+    return !!userId
+  } catch (error) {
+    return false
+  }
+}
+
+// Helper function to get current user ID
+export const getCurrentUserId = async req => {
+  try {
+    return await verifyToken(req, false)
+  } catch (error) {
+    return null
+  }
+}
+
 export const auth = {
   verifyToken,
   createAccessToken,
+  validateToken,
+  authenticate,
+  isAuthenticated,
+  getCurrentUserId,
 }
+
+export default auth

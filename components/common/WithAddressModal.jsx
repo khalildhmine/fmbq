@@ -1,14 +1,25 @@
+'use client'
+
 import React from 'react'
-
 import { AddressModal } from 'components'
-
 import { useDisclosure, useUserInfo } from 'hooks'
+import { Suspense } from 'react'
+
+const AddressModalWrapper = ({ isShowAddressModal, addressModalHandlers, userInfo }) => {
+  if (!userInfo?.isVerify || userInfo?.isLoading) return null
+
+  return (
+    <AddressModal
+      isShow={isShowAddressModal}
+      onClose={addressModalHandlers.close}
+      address={userInfo?.address ?? {}}
+    />
+  )
+}
 
 const WithAddressModal = props => {
   const { children } = props
-
   const [isShowAddressModal, addressModalHandlers] = useDisclosure()
-
   const { userInfo, isVerify, isLoading } = useUserInfo()
 
   const addressModalProps = {
@@ -49,13 +60,13 @@ const WithAddressModal = props => {
           : child
       )}
 
-      {!isVerify ? null : !isLoading ? (
-        <AddressModal
-          isShow={isShowAddressModal}
-          onClose={addressModalHandlers.close}
-          address={userInfo?.address ?? {}}
+      <Suspense fallback={null}>
+        <AddressModalWrapper
+          isShowAddressModal={isShowAddressModal}
+          addressModalHandlers={addressModalHandlers}
+          userInfo={{ ...userInfo, isVerify, isLoading }}
         />
-      ) : null}
+      </Suspense>
     </>
   )
 }

@@ -1,120 +1,97 @@
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { connectToDatabase } from '@/lib/db'
-import { User } from '@/models'
+import { createAccessToken } from '@/lib/auth'
+import { connectDb } from '@/lib/db'
+import User from '@/models/User'
 import bcrypt from 'bcryptjs'
-import { SignJWT } from 'jose'
 
-export async function POST(req) {
+export async function POST(request) {
   try {
-    console.log('[Login Debug] Processing login request')
+    const { email, password } = await request.json()
 
-    if (!req.body) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'No request body',
-        },
-        { status: 400 }
-      )
-    }
-
-    const { email, password } = await req.json()
-    console.log('[Login Debug] Login attempt for:', email)
-
+    // Validate input
     if (!email || !password) {
       return NextResponse.json(
-        {
-          success: false,
-          message: 'Email and password are required',
-        },
+        { success: false, message: 'Please provide email and password' },
         { status: 400 }
       )
     }
 
-    await connectToDatabase()
+    // Connect to database
+    try {
+      await connectDb()
+    } catch (dbError) {
+      console.error('Database connection error:', dbError)
+      return NextResponse.json(
+        { success: false, message: 'Database connection error' },
+        { status: 500 }
+      )
+    }
 
+    // Find user
     const user = await User.findOne({ email }).select('+password')
     if (!user) {
-      console.log('[Login Debug] User not found:', email)
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Invalid email or password',
-        },
-        { status: 401 }
-      )
+      return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 })
     }
 
-    const isValidPassword = await bcrypt.compare(password, user.password)
-    if (!isValidPassword) {
-      console.log('[Login Debug] Invalid password for:', email)
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Invalid email or password',
-        },
-        { status: 401 }
-      )
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.password)
+    if (!isMatch) {
+      return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 })
     }
 
-    console.log('[Login Debug] User authenticated:', {
+    // Create token
+    const token = createAccessToken({
       id: user._id,
       email: user.email,
       role: user.role,
     })
 
-    // Create token with jose
-    const secret = new TextEncoder().encode(
-      process.env.NEXT_PUBLIC_ACCESS_TOKEN_SECRET || 'your-secret-key'
+    // Create the response with headers
+    const response = new NextResponse(
+      JSON.stringify({
+        success: true,
+        data: {
+          user: {
+            _id: user._id,
+            email: user.email,
+            role: user.role,
+            name: user.name,
+            avatar: user.avatar,
+            isAdmin: user.isAdmin,
+          },
+          redirectTo: user.role === 'admin' ? '/admin' : '/',
+        },
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
     )
 
-    const token = await new SignJWT({ id: user._id.toString(), role: user.role })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('7d')
-      .sign(secret)
-
-    console.log('[Login Debug] Generated token payload:', {
-      id: user._id,
-      role: user.role,
-    })
-
-    // Create the response
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-    })
-
-    // Set cookies in the response
+    // Set cookies with proper options
     response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
     })
 
-    response.cookies.set('user_role', user.role, {
+    response.cookies.set('userRole', user.role, {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
-      maxAge: 60 * 60 * 24 * 7,
-    })
-
-    console.log('[Login Debug] Set cookies:', {
-      token: 'JWT Token (hidden)',
-      user_role: user.role,
     })
 
     return response
   } catch (error) {
-    console.error('[Login Debug] Error:', error)
-    return NextResponse.json({ success: false, message: 'Authentication failed' }, { status: 500 })
+    console.error('Error in login route:', error)
+    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const dynamic = 'force-dynamic'

@@ -1,17 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useGetOrdersListQuery } from '@/store/services'
 import { motion } from 'framer-motion'
 
-import { ShowWrapper, EmptyOrdersList, PageContainer, TableSkeleton } from 'components'
+import { ShowWrapper, EmptyOrdersList, PageContainer, TableSkeleton } from '@/components'
 import DynamicOrdersTable from '@/components/admin/DynamicOrdersTable.jsx'
 import { useChangeRoute } from 'hooks'
 import { useTitle, useUrlQuery } from '@/hooks'
 import { Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import DashboardLayout from '@/components/Layouts/DashboardLayout'
 
-const OrdersPage = () => {
+const OrdersContent = () => {
   useTitle('Orders Management')
   const [isLoading, setIsLoading] = useState(true)
   const [ordersData, setOrdersData] = useState([])
@@ -310,6 +311,16 @@ const OrdersPage = () => {
         </div>
       </div> */}
     </motion.div>
+  )
+}
+
+const OrdersPage = () => {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={<div>Loading...</div>}>
+        <OrdersContent />
+      </Suspense>
+    </DashboardLayout>
   )
 }
 

@@ -2,6 +2,8 @@
 
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { Suspense } from 'react'
+import dynamic from 'next/dynamic'
 
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
@@ -10,30 +12,36 @@ import 'nprogress/nprogress.css'
 
 NProgress.configure({ showSpinner: false })
 
-export default function PageLoading() {
-  //? Assets
+const LoadingContent = () => {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [isLoading, setIsLoading] = useState(true)
 
-  //? States
-  const [loading, setLoading] = useState(false)
-
-  //? Re-Renders
   useEffect(() => {
-    setLoading(false)
-    NProgress.done()
-    return () => {
-      setLoading(true)
-      NProgress.start()
-    }
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+    }, 500)
+
+    return () => clearTimeout(timer)
   }, [pathname, searchParams])
 
-  //? Render(s)
+  if (!isLoading) return null
+
   return (
-    loading && (
-      <div className="fixed inset-0 z-40 ">
-        <div className="grid h-full bg-blue-50/30 place-items-center "></div>
+    <div className="fixed inset-0 z-50 bg-white/80 backdrop-blur-sm">
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-900"></div>
       </div>
-    )
+    </div>
   )
 }
+
+const PageLoading = () => {
+  return (
+    <Suspense fallback={null}>
+      <LoadingContent />
+    </Suspense>
+  )
+}
+
+export default PageLoading

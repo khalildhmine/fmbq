@@ -3,7 +3,7 @@ import { useRef } from 'react'
 
 import { Control, UseFormRegister, useFieldArray } from 'react-hook-form'
 
-import { AddIconBtn, DeleteIconBtn } from 'components'
+import { AddIconBtn, DeleteIconBtn } from '@/components/common/IconBtns'
 
 const DetailsList = props => {
   //? Props

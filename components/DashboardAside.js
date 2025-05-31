@@ -155,6 +155,7 @@ export default function DashboardAside({
   const [collapsed, setCollapsed] = useState(isCollapsed)
   const [activeSection, setActiveSection] = useState(null)
   const [hoveredItem, setHoveredItem] = useState(null)
+  const [expandedItems, setExpandedItems] = useState({})
 
   useEffect(() => {
     setCollapsed(isCollapsed)
@@ -241,6 +242,15 @@ export default function DashboardAside({
     closed: { opacity: 0, x: -10, transition: { duration: 0.2 } },
   }
 
+  const toggleSubmenu = title => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [title]: !prev[title],
+    }))
+  }
+
+  const isActive = href => pathname === href
+
   return (
     <motion.aside
       variants={sidebarVariants}
@@ -255,7 +265,9 @@ export default function DashboardAside({
       <div className="h-full flex flex-col">
         {/* Logo Header */}
         <div className="px-6 py-6">
-          <span className="text-red-500 font-bold text-2xl">F & B</span>
+          <Link href="/admin" className="flex-shrink-0 flex items-center">
+            <span className="text-xl font-bold text-red-500">F & B</span>
+          </Link>
         </div>
 
         {/* Navigation Menu */}

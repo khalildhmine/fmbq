@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { connectToDatabase } from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+import { connectToDatabase } from '@/lib/db'
 
 // Helper function to extract token from various sources
 function extractToken(req) {

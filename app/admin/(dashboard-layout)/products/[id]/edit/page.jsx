@@ -1,9 +1,13 @@
-import { use } from 'react'
+'use client'
+
+import { useEffect } from 'react'
 import EditProductClient from './EditProductClient'
 
 export default function EditProductPage({ params }) {
-  // Resolve params in the Server Component
-  const resolvedParams = use(Promise.resolve(params))
+  // Ensure we have a valid ID
+  if (!params?.id) {
+    return <div>Invalid product ID</div>
+  }
 
-  return <EditProductClient id={resolvedParams.id} />
+  return <EditProductClient id={params.id} />
 }

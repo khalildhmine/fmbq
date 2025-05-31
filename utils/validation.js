@@ -24,12 +24,12 @@ export const categorySchema = Yup.object().shape({
 })
 
 export const bannerSchema = Yup.object().shape({
-  title: Yup.string().required('名称不能为空'),
+  title: Yup.string().required('Title is required'),
+  uri: Yup.string().required('URI is required'),
+  isPublic: Yup.boolean().default(true),
+  type: Yup.string().oneOf(['one', 'two']).required('Type is required'),
   image: Yup.object().shape({
-    url: Yup.string()
-      .required('请输入图片地址')
-      .url('地址无效')
-      .matches(/\.(gif|jpe?g|png|webp)$/i, '图像地址必须是有效的图像URL'),
+    url: Yup.string().required('Image URL is required'),
   }),
 })
 

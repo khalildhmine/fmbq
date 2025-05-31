@@ -1,14 +1,25 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
 const useUrlQuery = () => {
-  const searchParams = useSearchParams()
+  const [query, setQuery] = useState({})
 
-  const query = {}
-  for (const [key, value] of searchParams.entries()) {
-    query[key] = value
-  }
+  useEffect(() => {
+    try {
+      const searchParams = useSearchParams()
+      const result = {}
+      if (searchParams) {
+        searchParams.forEach((value, key) => {
+          result[key] = value
+        })
+      }
+      setQuery(result)
+    } catch (error) {
+      console.warn('useSearchParams not available:', error)
+    }
+  }, [])
 
   return query
 }

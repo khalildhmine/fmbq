@@ -1,58 +1,39 @@
-import { usersRepo } from 'helpers'
-import { setJson } from '@/helpers/api'
-import jwt from 'jsonwebtoken'
+import { NextResponse } from 'next/server'
+import { verifyAuth } from '@/lib/auth'
+import { getAuthToken } from '@/lib/server-auth'
 
-export async function GET(req) {
+export async function GET(request) {
   try {
-    // Get the token from the request
-    const token = req.cookies.get('token')?.value
-
+    // Get token from cookies
+    const token = getAuthToken()
     if (!token) {
-      return new Response(JSON.stringify({ message: 'Unauthorized - No token provided' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 })
     }
 
-    // Verify the token and extract user ID
-    const decoded = jwt.verify(
-      token,
-      process.env.NEXT_PUBLIC_ACCESS_TOKEN_SECRET || 'your-secret-key'
-    )
-
-    // Use the ID from the token to get user data
-    const user = await usersRepo.getById(decoded.id)
-
-    if (!user) {
-      return new Response(JSON.stringify({ message: 'User not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-
-    // Return user data
-    return new Response(
-      JSON.stringify({
-        data: {
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          root: user.root,
-          address: user.address,
-          mobile: user.mobile,
-        },
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    )
-  } catch (error) {
-    console.error('Error in user API:', error)
-    return new Response(JSON.stringify({ message: error.message || 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
+    // Add token to request headers
+    const headers = new Headers(request.headers)
+    headers.set('authorization', `Bearer ${token}`)
+    const requestWithAuth = new Request(request.url, {
+      method: request.method,
+      headers,
     })
+
+    // Verify the token
+    const authResult = await verifyAuth(requestWithAuth)
+    if (!authResult.success) {
+      return NextResponse.json(
+        { success: false, message: authResult.message || 'Not authenticated' },
+        { status: 401 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: authResult.user,
+    })
+  } catch (error) {
+    console.error('Error in auth/user route:', error)
+    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 })
   }
 }
 

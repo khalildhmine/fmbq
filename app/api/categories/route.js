@@ -1,61 +1,34 @@
-import connectToDB from '@/database'
-import Category from '@/models/Category'
-import joi from 'joi'
 import { NextResponse } from 'next/server'
+import { connectToDatabase } from '@/helpers/db'
+import { Category } from '@/models'
+import joi from 'joi'
+import { ObjectId } from 'mongodb'
 
-export async function GET(req) {
+export const dynamic = 'force-dynamic'
+
+export async function GET() {
   try {
-    console.log('Category API: Starting request processing')
+    const { db } = await connectToDatabase()
+    console.log('Connected to database, fetching categories...')
 
-    // Connect to database
-    await connectToDB()
-    console.log('Category API: Connected to database')
+    const categories = await db.collection('categories').find({}).sort({ name: 1 }).toArray()
+    console.log(`Found ${categories.length} categories`)
 
-    // Get all categories
-    const categories = await Category.find({ active: true }) // Only get active categories by default
-    console.log(`Category API: Found ${categories.length} active categories`)
+    // Format categories to ensure consistent response
+    const formattedCategories = categories.map(category => ({
+      ...category,
+      _id: category._id.toString(),
+      parent: category.parent ? category.parent.toString() : null,
+    }))
 
-    // Build category hierarchy
-    const allCategories = categories.map(cat => cat.toObject())
-
-    function findChildren(category) {
-      const children = allCategories.filter(
-        c => c.parent && c.parent.toString() === category._id.toString() && c.active !== false // Only include active children
-      )
-      if (children.length > 0) {
-        category.children = children.map(child => {
-          return findChildren({ ...child })
-        })
-      }
-      return category
-    }
-
-    // Get root categories (those without a parent)
-    const rootCategories = allCategories.filter(c => !c.parent && c.active !== false)
-    console.log(`Category API: Found ${rootCategories.length} active root categories`)
-
-    // Build the category tree
-    const categoriesWithChildren = rootCategories.map(category => {
-      return findChildren({ ...category })
+    return NextResponse.json({
+      success: true,
+      data: formattedCategories,
     })
-
-    // Return the response
-    return NextResponse.json(
-      {
-        data: {
-          categories: allCategories,
-          categoriesList: categoriesWithChildren[0] || null,
-        },
-      },
-      { status: 200 }
-    )
   } catch (error) {
-    console.error('Category API error:', error)
+    console.error('Error in categories API:', error)
     return NextResponse.json(
-      {
-        status: 'error',
-        message: error.message || 'Failed to get categories',
-      },
+      { success: false, error: 'Failed to fetch categories' },
       { status: 500 }
     )
   }
@@ -63,53 +36,30 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    console.log('Category API: Starting category creation')
+    const { db } = await connectToDatabase()
 
-    // Get request body
-    const body = await req.json()
+    const data = await req.json()
 
-    // Validate request body
-    const schema = joi.object({
-      name: joi.string().required(),
-      slug: joi.string().required(),
-      image: joi.string().required(),
-      colors: joi.object().optional(),
-      level: joi.number().required(),
-      parent: joi.string().allow(null), // Allow null for parent
-    })
-
-    const { error } = schema.validate(body)
-    if (error) {
-      return NextResponse.json(
-        {
-          status: 'error',
-          message: error.details[0].message,
-        },
-        { status: 400 }
-      )
+    // Convert parent to ObjectId if provided
+    if (data.parent) {
+      data.parent = new ObjectId(data.parent)
     }
 
-    // Connect to database
-    await connectToDB()
+    const result = await db.collection('categories').insertOne(data)
+    const insertedCategory = await db.collection('categories').findOne({ _id: result.insertedId })
 
-    // Create category
-    const category = new Category(body)
-    await category.save()
-
-    console.log('Category API: Category created successfully')
-
-    // Return success response
     return NextResponse.json({
-      status: 'success',
-      message: '创建分类成功',
+      success: true,
+      data: {
+        ...insertedCategory,
+        _id: insertedCategory._id.toString(),
+        parent: insertedCategory.parent ? insertedCategory.parent.toString() : null,
+      },
     })
   } catch (error) {
-    console.error('Category creation error:', error)
+    console.error('Error creating category:', error)
     return NextResponse.json(
-      {
-        status: 'error',
-        message: error.message || 'Failed to create category',
-      },
+      { success: false, error: 'Failed to create category' },
       { status: 500 }
     )
   }

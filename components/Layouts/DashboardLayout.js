@@ -200,24 +200,24 @@ export default function DashboardLayout({ children }) {
         </div>
       </header>
       {/* Mobile backdrop */}
-      {mobileSidebarOpen && (
+      {/* {mobileSidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-black bg-opacity-75 lg:hidden transition-opacity"
           onClick={() => setMobileSidebarOpen(false)}
         ></div>
-      )}
+      )} */}
       {/* Main content area */}
-      <div className="pt-16 transition-all duration-300 bg-white ml-10">
+      <div className="pt-16 transition-all duration-300 bg-white ">
         <div className="max-w-8xl mx-auto">
           <div className="lg:flex">
             {/* Mobile sidebar */}
-            {mobileSidebarOpen && (
+            {/* {mobileSidebarOpen && (
               <div className="fixed inset-y-0 left-0 z-30 w-72 lg:hidden">
                 <div className="h-full">
                   <DashboardAside isCollapsed={false} onToggle={handleToggleSidebar} />
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Desktop sidebar */}
             <div

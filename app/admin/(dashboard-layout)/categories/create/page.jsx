@@ -2,18 +2,32 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import PageContainer from '@/components/common/PageContainer'
-import { toast } from 'react-hot-toast'
 import { FiArrowLeft, FiCode, FiLayers } from 'react-icons/fi'
 import Link from 'next/link'
+import { Suspense } from 'react'
+import dynamic from 'next/dynamic'
+import { toast } from 'react-hot-toast'
+import DashboardLayout from '@/components/Layouts/DashboardLayout'
 
-const CreateCategoryPage = () => {
+// Dynamically import components that might use client-side hooks
+const DynamicPageContainer = dynamic(() => import('@/components/common/PageContainer'), {
+  ssr: false,
+  loading: () => (
+    <div className="animate-pulse">
+      <div className="h-8 bg-gray-200 rounded w-1/4 mb-4" />
+      <div className="h-96 bg-gray-200 rounded" />
+    </div>
+  ),
+})
+
+// Separate the inner component that uses useSearchParams
+const CreateCategoryContent = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
 
   // Get level and parent_id from URL if they exist
-  const initialLevel = searchParams.get('level') ? parseInt(searchParams.get('level')) : 0
-  const initialParentId = searchParams.get('parent_id') || null
+  const initialLevel = searchParams?.get('level') ? parseInt(searchParams.get('level')) : 0
+  const initialParentId = searchParams?.get('parent_id') || null
 
   const [formData, setFormData] = useState({
     name: '',
@@ -454,7 +468,7 @@ const CreateCategoryPage = () => {
   }
 
   return (
-    <PageContainer title="Create Category">
+    <DynamicPageContainer title="Create Category">
       <div className="flex items-center justify-between mb-6">
         <Link
           href="/admin/categories"
@@ -788,7 +802,18 @@ const CreateCategoryPage = () => {
           </div>
         </form>
       )}
-    </PageContainer>
+    </DynamicPageContainer>
+  )
+}
+
+// Wrap the content in Suspense
+const CreateCategoryPage = () => {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={<div>Loading...</div>}>
+        <CreateCategoryContent />
+      </Suspense>
+    </DashboardLayout>
   )
 }
 

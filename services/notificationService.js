@@ -100,29 +100,19 @@ export function NotificationProvider({ children }) {
   }, [notifications])
 
   const addNotification = useCallback(notification => {
-    setNotifications(prev => {
-      // Check if notification with same ID already exists
-      if (prev.some(n => n.id === notification.id)) {
-        return prev
-      }
-      return [notification, ...prev]
-    })
+    setNotifications(prev => [notification, ...prev])
   }, [])
 
-  const markAsRead = useCallback(notificationId => {
-    setNotifications(prev =>
-      prev.map(notification =>
-        notification.id === notificationId ? { ...notification, isRead: true } : notification
-      )
-    )
+  const removeNotification = useCallback(id => {
+    setNotifications(prev => prev.filter(n => n.id !== id))
+  }, [])
+
+  const markAsRead = useCallback(id => {
+    setNotifications(prev => prev.map(n => (n.id === id ? { ...n, isRead: true } : n)))
   }, [])
 
   const markAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(notification => ({ ...notification, isRead: true })))
-  }, [])
-
-  const removeNotification = useCallback(notificationId => {
-    setNotifications(prev => prev.filter(notification => notification.id !== notificationId))
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
   }, [])
 
   const clearNotifications = useCallback(() => {
@@ -133,9 +123,9 @@ export function NotificationProvider({ children }) {
   const value = {
     notifications,
     addNotification,
+    removeNotification,
     markAsRead,
     markAllAsRead,
-    removeNotification,
     clearNotifications,
     socket,
   }

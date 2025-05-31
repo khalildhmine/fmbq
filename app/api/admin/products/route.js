@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { Product } from '@/models'
 import { verifyToken } from '@/helpers/jwt'
-import { connectToDatabase } from '@/helpers/db'
+import { connectToDatabase } from '@/lib/mongoose'
+import { connectToDB } from '@/lib/mongoose'
 
 // Helper to get token from request
 const getTokenFromRequest = req => {
@@ -101,145 +102,45 @@ async function seedProductsIfEmpty() {
   }
 }
 
-export async function GET(request) {
+export async function GET(req) {
   try {
-    console.log('[Admin Products API] Request received')
-
-    // Get token and verify admin status
-    const token = getTokenFromRequest(request)
-
-    // If no token but we have user header from middleware, proceed
-    const userHeader = request.headers.get('user')
-    let isAdmin = false
-
-    if (userHeader) {
-      try {
-        const user = JSON.parse(userHeader)
-        isAdmin = user.role === 'admin'
-        console.log('[Admin Products API] User from middleware:', { role: user.role, isAdmin })
-      } catch (e) {
-        console.error('[Admin Products API] Error parsing user header:', e)
-      }
-    }
-
-    // If we have a token, verify it
-    if (token) {
-      try {
-        const decodedToken = await verifyToken(token)
-        if (decodedToken && decodedToken.role === 'admin') {
-          isAdmin = true
-          console.log('[Admin Products API] Token verification successful')
-        }
-      } catch (error) {
-        console.error('[Admin Products API] Token verification failed:', error)
-      }
-    }
-
-    // If neither token verification nor middleware confirms admin status
-    if (!isAdmin) {
-      console.log('[Admin Products API] User is not an admin')
-      return NextResponse.json(
-        { status: 'error', message: 'Admin access required' },
-        { status: 403 }
-      )
-    }
-
-    // Connect to the database
     await connectToDatabase()
 
-    // Check if we need to seed data
-    await seedProductsIfEmpty()
+    const { searchParams } = new URL(req.url)
+    const limit = searchParams.get('limit') || 10
+    const page = searchParams.get('page') || 1
 
-    // Get query parameters
-    const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit')) || 10
-    const page = parseInt(searchParams.get('page')) || 1
-    const sort = searchParams.get('sort') || 'createdAt'
-    const order = searchParams.get('order') || 'desc'
-    const category = searchParams.get('category') || null
-    const search = searchParams.get('search') || null
-
-    console.log(
-      `[Admin Products API] Query params: limit=${limit}, page=${page}, sort=${sort}, order=${order}`
-    )
-
-    // Build query
-    const query = {}
-    if (category) {
-      query.category = { $in: [category] }
-    }
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-      ]
-    }
-
-    // Count total products for pagination
-    const total = await Product.countDocuments(query)
-    console.log(`[Admin Products API] Total products matching query: ${total}`)
-
-    // Get products with pagination and sorting
-    const sortOptions = {}
-    sortOptions[sort] = order === 'asc' ? 1 : -1
-
-    console.log(`[Admin Products API] Executing query with sort: ${JSON.stringify(sortOptions)}`)
-    const products = await Product.find(query)
-      .sort(sortOptions)
+    const products = await Product.find()
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
       .skip((page - 1) * limit)
-      .limit(limit)
-      .lean()
 
-    console.log(`[Admin Products API] Products found: ${products.length}`)
-
-    // Log the first product for debugging
-    if (products.length > 0) {
-      console.log('First product sample:', {
-        id: products[0]._id,
-        title: products[0].title,
-        price: products[0].price,
-        inStock: products[0].inStock,
-      })
-    }
-
-    // Format products for response
-    const formattedProducts = products.map(product => ({
-      id: product._id.toString(),
-      title: product.title || 'Untitled Product',
-      price: parseFloat(product.price) || 0,
-      description: product.description || '',
-      images: product.images || [],
-      category: Array.isArray(product.category)
-        ? product.category[0]
-        : product.category || 'Uncategorized',
-      inStock: parseInt(product.inStock) || 0,
-      sold: parseInt(product.sold) || 0,
-      createdAt: product.createdAt || new Date(),
-    }))
-
-    // Log the formatted data before sending
-    console.log('[Admin Products API] Sending response with products:', formattedProducts.length)
-
-    // Format response with explicit type conversion
-    const responseData = {
+    return NextResponse.json({
       success: true,
       data: {
-        products: formattedProducts,
-        pagination: {
-          total: Number(total) || 0,
-          page: Number(page) || 1,
-          limit: Number(limit) || 10,
-          pages: Math.ceil(total / limit) || 1,
-        },
+        products,
+        total: await Product.countDocuments(),
       },
-    }
-
-    return NextResponse.json(responseData)
+    })
   } catch (error) {
-    console.error('[Admin Products API] Error:', error)
-    return NextResponse.json(
-      { message: 'Error fetching products', error: error.message },
-      { status: 500 }
-    )
+    console.error('Error in products API:', error)
+    return NextResponse.json({ success: false, error: 'Failed to fetch products' }, { status: 500 })
+  }
+}
+
+export async function POST(req) {
+  try {
+    await connectToDB()
+
+    const data = await req.json()
+    const product = await Product.create(data)
+
+    return NextResponse.json({
+      success: true,
+      data: product,
+    })
+  } catch (error) {
+    console.error('Error creating product:', error)
+    return NextResponse.json({ success: false, error: 'Failed to create product' }, { status: 500 })
   }
 }

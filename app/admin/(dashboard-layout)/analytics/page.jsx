@@ -28,7 +28,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js'
-import { formatPrice } from '@/utils/formatters'
+import { formatPrice } from '@/utils/formatNumber'
 
 // Register ChartJS components
 ChartJS.register(

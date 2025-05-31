@@ -1,15 +1,16 @@
 'use client'
 
 import Image from 'next/image'
-
-import { Button, ControlledCheckbox, TextField, UploadImage } from 'components'
-
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-
-import { bannerSchema } from 'utils'
-
 import { useEffect } from 'react'
+
+import TextField from '@/components/common/TextField'
+import ControlledCheckbox from '@/components/common/ControlledCheckbox'
+import UploadImage from '@/components/common/UploadImage'
+import Button from '@/components/common/Button'
+
+import { bannerSchema } from '@/utils/validation'
 
 const BannerForm = props => {
   //? Props

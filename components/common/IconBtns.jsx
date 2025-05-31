@@ -1,7 +1,5 @@
 'use client'
 
-// import { Icons } from 'components'
-import Icons from '../common/Icons'
 import { FaArrowLeft, FaEdit, FaTrash, FaPlus } from 'react-icons/fa'
 import { useRouter } from 'next/navigation'
 

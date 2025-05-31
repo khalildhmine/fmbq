@@ -1,3 +1,8 @@
 export * from './db-repo'
 export * from './api'
 export { default as api } from './api'
+export { default as db } from './db'
+export { default as usersRepo } from './db-repo/users'
+export { default as detailsRepo } from './db-repo/details'
+export { default as productRepo } from './db-repo/products'
+export { default as reviewRepo } from './db-repo/reviews'

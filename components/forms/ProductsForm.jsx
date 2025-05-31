@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Tab } from '@headlessui/react'
 import { toast } from 'react-hot-toast'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -50,7 +49,7 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
   })
 
   // States
-  const [currentTabIndex, setCurrentTabIndex] = useState(0)
+  const [activeTab, setActiveTab] = useState(0)
   const [formErrors, setFormErrors] = useState({})
   const [completedTabs, setCompletedTabs] = useState([])
   const [selectedCategories, setSelectedCategories] = useState({
@@ -65,7 +64,7 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
     let errors = {}
     let isValid = true
 
-    switch (currentTabIndex) {
+    switch (activeTab) {
       case 0: // Basic Info
         if (!values.title) {
           errors.title = 'Title is required'
@@ -115,15 +114,15 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
 
   const goToNextTab = () => {
     if (validateCurrentTab()) {
-      if (!completedTabs.includes(currentTabIndex)) {
-        setCompletedTabs([...completedTabs, currentTabIndex])
+      if (!completedTabs.includes(activeTab)) {
+        setCompletedTabs([...completedTabs, activeTab])
       }
-      setCurrentTabIndex(prev => Math.min(prev + 1, tabListNames.length - 1))
+      setActiveTab(prev => Math.min(prev + 1, tabListNames.length - 1))
     }
   }
 
   const goToPreviousTab = () => {
-    setCurrentTabIndex(prev => Math.max(prev - 1, 0))
+    setActiveTab(prev => Math.max(prev - 1, 0))
   }
 
   // Form submission handler
@@ -131,7 +130,7 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
     try {
       // Validate all tabs before submission
       for (let i = 0; i < tabListNames.length; i++) {
-        setCurrentTabIndex(i)
+        setActiveTab(i)
         if (!validateCurrentTab()) {
           toast.error(`Please complete the ${tabListNames[i].name} section`)
           return
@@ -146,41 +145,34 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
           subCategory: selectedCategories.subCategory?._id || selectedCategories.subCategory,
           leafCategory: selectedCategories.leafCategory?._id || selectedCategories.leafCategory,
         },
-        // Ensure arrays are properly initialized
         colors: data.colors || [],
         sizes: data.sizes || [],
         info: data.info || [],
         specification: data.specification || [],
-        // Convert numeric fields
         price: Number(data.price),
         inStock: Number(data.inStock || 0),
         discount: Number(data.discount || 0),
       }
 
-      console.log('Submitting form data:', formData)
-
-      // Call the appropriate handler
       if (mode === 'edit') {
         await updateHandler(formData)
       } else {
         await createHandler(formData)
       }
 
-      // Clear form storage on success
       localStorage.removeItem(FORM_STORAGE_KEY)
     } catch (error) {
       console.error('Form submission error:', error)
       toast.error(error.message || `Failed to ${mode} product`)
-      // Save form data in case of error
       localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(data))
     }
   }
 
-  // Initialize form data
+  // Initialize form with product data
   useEffect(() => {
     if (mode === 'edit' && selectedProduct) {
       try {
-        // Extract brand ID from different possible formats
+        // Extract brand ID
         let brandId = ''
         if (selectedProduct.brand) {
           if (typeof selectedProduct.brand === 'object') {
@@ -190,8 +182,8 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
           }
         }
 
-        // Reset form with properly formatted data
-        reset({
+        // Initialize form with default values
+        const defaultValues = {
           title: selectedProduct.title || '',
           price: selectedProduct.price || 0,
           brand: brandId,
@@ -205,9 +197,12 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
           info: selectedProduct.info || [],
           specification: selectedProduct.specification || [],
           optionsType: selectedProduct.optionsType || '',
-        })
+        }
 
-        // Set categories if available
+        // Reset form with default values
+        reset(defaultValues)
+
+        // Set category hierarchy if exists
         if (selectedProduct.categoryHierarchy) {
           setSelectedCategories({
             mainCategory: selectedProduct.categoryHierarchy.mainCategory || null,
@@ -215,361 +210,138 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
             leafCategory: selectedProduct.categoryHierarchy.leafCategory || null,
           })
         }
-
-        // Mark required tabs as completed
-        const completedTabs = []
-        if (selectedProduct.title) completedTabs.push(0)
-        if (selectedProduct.images?.length > 0) completedTabs.push(1)
-        if (selectedProduct.price > 0) completedTabs.push(2)
-        if (brandId) completedTabs.push(3)
-        if (selectedProduct.categoryHierarchy?.mainCategory) completedTabs.push(4)
-        if (selectedProduct.gender) completedTabs.push(8)
-        setCompletedTabs(completedTabs)
       } catch (error) {
         console.error('Error initializing form:', error)
-        toast.error('Error initializing form data')
+        toast.error('Failed to load product data')
       }
     }
   }, [mode, selectedProduct, reset])
 
-  return (
-    <section className="py-6 bg-white">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <Tab.Group selectedIndex={currentTabIndex} onChange={setCurrentTabIndex}>
-            {/* Tab navigation */}
-            <div className="border-b border-gray-200">
-              <Tab.List className="flex space-x-2 overflow-x-auto p-4">
-                {tabListNames.map((tab, index) => (
-                  <Tab
-                    key={tab.id}
-                    className={({ selected }) =>
-                      `px-4 py-2 rounded-md font-medium text-sm whitespace-nowrap ${
-                        selected
-                          ? 'bg-blue-600 text-white'
-                          : completedTabs.includes(index)
-                            ? 'bg-green-50 text-green-700'
-                            : 'bg-gray-50 text-gray-700'
-                      }`
-                    }
-                  >
-                    {tab.name}
-                    {completedTabs.includes(index) && ' ✓'}
-                  </Tab>
-                ))}
-              </Tab.List>
-            </div>
-
-            {/* Tab panels */}
-            <Tab.Panels className="p-6">
-              <Tab.Panel>
-                <div className="max-w-2xl mx-auto space-y-6">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-medium text-gray-800 mb-1">Product Information</h3>
-                    <p className="text-gray-500 text-sm mb-4">
-                      Enter the essential details about your product
-                    </p>
-                  </div>
-                  <TextField
-                    label="Product Title"
-                    name="title"
-                    control={control}
-                    rules={{ required: 'Product title is required' }}
-                    error={formErrors.title}
-                  />
-                  <TextArea
-                    name="description"
-                    control={control}
-                    label="Product Description"
-                    rows={6}
-                  />
-                </div>
-              </Tab.Panel>
-
-              <Tab.Panel>
-                <ImageList control={control} setValue={setValue} />
-              </Tab.Panel>
-
-              <Tab.Panel>
-                <div className="max-w-3xl mx-auto">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <TextField
-                      label="Price"
-                      name="price"
-                      control={control}
-                      type="number"
-                      inputMode="numeric"
-                      rules={{ required: 'Price is required' }}
-                      error={formErrors.price}
-                    />
-                    <TextField
-                      label="Stock Quantity"
-                      name="inStock"
-                      control={control}
-                      type="number"
-                      inputMode="numeric"
-                      rules={{ required: 'Stock quantity is required' }}
-                      error={formErrors.inStock}
-                    />
-                    <TextField
-                      label="Discount Percentage"
-                      name="discount"
-                      control={control}
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      max={100}
-                    />
-                  </div>
-                </div>
-              </Tab.Panel>
-
-              <Tab.Panel>
-                <div className="max-w-2xl mx-auto">
-                  <BrandSelect control={control} name="brand" error={formErrors.brand} />
-                </div>
-              </Tab.Panel>
-
-              <Tab.Panel>
-                <div className="max-w-2xl mx-auto">
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">Product Categories</h3>
-
-                  <SelectCategories
-                    onChange={categories => {
-                      console.log('Categories changed:', categories)
-                      setSelectedCategories(categories)
-
-                      // Mark this tab as completed when a main category is selected
-                      if (categories.mainCategory && !completedTabs.includes(4)) {
-                        setCompletedTabs(prev => [...prev, 4])
-                      }
-
-                      // Clear category error if it exists
-                      if (formErrors.category) {
-                        setFormErrors(prev => {
-                          const newErrors = { ...prev }
-                          delete newErrors.category
-                          return newErrors
-                        })
-                      }
-                    }}
-                    value={selectedCategories}
-                    isRequired={true}
-                    showSelected={true}
-                  />
-
-                  {formErrors.category && (
-                    <div className="mt-2 text-red-500 text-sm">{formErrors.category}</div>
-                  )}
-                </div>
-              </Tab.Panel>
-
-              <Tab.Panel>
-                <div className="max-w-2xl mx-auto space-y-4">
-                  <h3 className="font-medium text-gray-800">Product Variants</h3>
-                  <p className="text-gray-500 text-sm">
-                    Set up different variants of your product (optional)
-                  </p>
-
-                  {/* Variant type selector could go here */}
-                  <div className="flex flex-col space-y-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Variant Type
-                      </label>
-                      <select
-                        {...register('optionsType')}
-                        className="w-full border border-gray-300 rounded-md p-2"
-                      >
-                        <option value="">None</option>
-                        <option value="color">Color</option>
-                        <option value="size">Size</option>
-                        <option value="both">Both Color and Size</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </Tab.Panel>
-
-              <Tab.Panel>
-                <div className="space-y-3">
-                  <label className="text-field__label">Product Attributes</label>
-                  {(watch('info') || []).map((info, index) => (
-                    <div key={index} className="flex gap-x-3">
-                      <input
-                        type="text"
-                        placeholder="Attribute Name"
-                        value={info?.title || ''}
-                        onChange={e => {
-                          const currentInfo = [...(watch('info') || [])]
-                          currentInfo[index] = { ...currentInfo[index], title: e.target.value }
-                          setValue('info', currentInfo)
-                        }}
-                        className="text-field flex-1"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Attribute Value"
-                        value={info?.value || ''}
-                        onChange={e => {
-                          const currentInfo = [...(watch('info') || [])]
-                          currentInfo[index] = { ...currentInfo[index], value: e.target.value }
-                          setValue('info', currentInfo)
-                        }}
-                        className="text-field flex-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentInfo = watch('info').filter((_, i) => i !== index)
-                          setValue('info', currentInfo)
-                        }}
-                        className="btn-danger px-4"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => handleAddAttribute()}
-                    className="btn-primary w-full"
-                  >
-                    Add Attribute
-                  </button>
-                </div>
-              </Tab.Panel>
-
-              <Tab.Panel>
-                <div className="space-y-3">
-                  <label className="text-field__label">Product Specifications</label>
-                  {(watch('specification') || []).map((spec, index) => (
-                    <div key={index} className="flex gap-x-3">
-                      <input
-                        type="text"
-                        placeholder="Specification Name"
-                        value={spec?.title || ''}
-                        onChange={e => handleSpecificationChange(index, 'title', e.target.value)}
-                        className="text-field flex-1"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Specification Value"
-                        value={spec?.value || ''}
-                        onChange={e => handleSpecificationChange(index, 'value', e.target.value)}
-                        className="text-field flex-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentSpecs = [...(watch('specification') || [])]
-                          setValue(
-                            'specification',
-                            currentSpecs.filter((_, i) => i !== index)
-                          )
-                        }}
-                        className="btn-danger px-4"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => handleAddSpecification()}
-                    className="btn-primary w-full"
-                  >
-                    Add Specification
-                  </button>
-                </div>
-              </Tab.Panel>
-
-              <Tab.Panel>
-                <div className="max-w-2xl mx-auto">
-                  <label className="text-field__label mb-2 block">Product Gender</label>
-                  <div className="flex flex-wrap gap-4">
-                    {['men', 'women', 'unisex', 'kids'].map(g => (
-                      <div key={g} className="flex items-center">
-                        <input
-                          type="radio"
-                          id={`gender-${g}`}
-                          {...register('gender')}
-                          value={g}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                        />
-                        <label
-                          htmlFor={`gender-${g}`}
-                          className="ml-2 block text-sm font-medium text-gray-700 capitalize"
-                        >
-                          {g}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                  {formErrors.gender && (
-                    <div className="mt-2 text-red-500 text-sm">{formErrors.gender}</div>
-                  )}
-                </div>
-              </Tab.Panel>
-
-              <Tab.Panel>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="font-medium text-gray-800 mb-4">Product Sizes</h3>
-                    <AddSizes control={control} register={register} />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-800 mb-4">Product Colors</h3>
-                    <AddColors control={control} register={register} />
-                  </div>
-                </div>
-              </Tab.Panel>
-            </Tab.Panels>
-          </Tab.Group>
-
-          {/* Navigation and Submit Buttons */}
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={goToPreviousTab}
-              disabled={currentTabIndex === 0}
-              className="flex items-center gap-2"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </Button>
-
-            <div className="flex items-center gap-4">
-              {currentTabIndex === tabListNames.length - 1 ? (
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={isLoadingUpdate}
-                  className="flex items-center gap-2"
-                >
-                  {isLoadingUpdate
-                    ? 'Updating...'
-                    : mode === 'create'
-                      ? 'Create Product'
-                      : 'Update Product'}
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={goToNextTab}
-                  className="flex items-center gap-2"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
+  // Custom tab panel renderer
+  const renderTabPanel = () => {
+    switch (activeTab) {
+      case 0: // Basic Info
+        return (
+          <div className="space-y-4">
+            <TextField label="Title" error={formErrors.title} {...register('title')} />
+            <TextArea label="Description" control={control} name="description" />
           </div>
-        </div>
-      </form>
-    </section>
+        )
+      case 1: // Images
+        return <ImageList control={control} name="images" />
+      case 2: // Pricing
+        return (
+          <div className="space-y-4">
+            <TextField
+              type="number"
+              label="Price"
+              error={formErrors.price}
+              {...register('price')}
+            />
+            <TextField
+              type="number"
+              label="Stock"
+              error={formErrors.inStock}
+              {...register('inStock')}
+            />
+            <TextField type="number" label="Discount" {...register('discount')} />
+          </div>
+        )
+      case 3: // Brand
+        return <BrandSelect control={control} error={formErrors.brand} />
+      case 4: // Categories
+        return (
+          <SelectCategories
+            selectedCategories={selectedCategories}
+            setSelectedCategories={setSelectedCategories}
+            error={formErrors.category}
+          />
+        )
+      case 8: // Gender
+        return (
+          <div className="space-y-3">
+            <p className="text-gray-700">Select Gender:</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input type="radio" id="male" value="male" {...register('gender')} />
+                <label htmlFor="male">Male</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="radio" id="female" value="female" {...register('gender')} />
+                <label htmlFor="female">Female</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="radio" id="unisex" value="unisex" {...register('gender')} />
+                <label htmlFor="unisex">Unisex</label>
+              </div>
+            </div>
+            {formErrors.gender && <p className="text-red-500 text-sm">{formErrors.gender}</p>}
+          </div>
+        )
+      case 9: // Sizes & Colors
+        return (
+          <div className="space-y-6">
+            <AddSizes control={control} />
+            <AddColors control={control} />
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Custom Tab Navigation */}
+      <div className="flex space-x-1 rounded-xl bg-slate-200 p-1">
+        {tabListNames.map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`w-full rounded-lg py-2.5 text-sm font-medium leading-5 transition-all duration-200
+              ${
+                activeTab === tab.id
+                  ? 'bg-white text-blue-700 shadow'
+                  : 'text-blue-400 hover:bg-white/[0.12] hover:text-blue-600'
+              }`}
+          >
+            {tab.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="mt-4">{renderTabPanel()}</div>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between pt-4">
+        <Button
+          type="button"
+          onClick={goToPreviousTab}
+          disabled={activeTab === 0}
+          className="flex items-center gap-2"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Previous
+        </Button>
+
+        {activeTab === tabListNames.length - 1 ? (
+          <Button
+            type="submit"
+            isLoading={mode === 'edit' ? isLoadingUpdate : false}
+            className="bg-green-500"
+          >
+            {mode === 'edit' ? 'Update Product' : 'Create Product'}
+          </Button>
+        ) : (
+          <Button type="button" onClick={goToNextTab} className="flex items-center gap-2">
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+    </form>
   )
 }
 

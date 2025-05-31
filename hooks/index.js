@@ -1,6 +1,6 @@
 'use client'
 
-export { default as useTitle } from './useTitle'
+export * from './useTitle'
 export { default as useUrlQuery } from './useUrlQuery'
 export { default as useUserInfo } from './useUserInfo'
 export { default as useVerify } from './useVerify'

@@ -1,5 +1,7 @@
-import { Button } from '../common/Buttons'
-import Modal from '../common/Modal'
+'use client'
+
+import { Button } from '@/components/common/Buttons'
+import Modal from '@/components/common/Modal'
 
 export default function ConfirmDeleteModal(props) {
   //? Props

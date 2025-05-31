@@ -19,24 +19,28 @@ export const categoryApiSlice = apiSlice.injectEndpoints({
         }
       },
       transformResponse: response => {
-        if (!response?.success || !response?.data) {
-          throw new Error('Invalid response format')
+        if (!response?.success) {
+          console.error('Invalid category API response:', response)
+          return { data: { categories: [] } }
         }
 
         // Handle both array and object responses
-        const categories = response.data.categories || response.data
+        const categories = response.data?.categories || response.data || []
 
         // Ensure we're working with an array
         if (!Array.isArray(categories)) {
-          throw new Error('Categories data is not an array')
+          console.error('Categories data is not an array:', categories)
+          return { data: { categories: [] } }
         }
 
         // Filter out inactive categories if they somehow got through
-        return categories.filter(cat => cat.active !== false)
+        const filteredCategories = categories.filter(cat => cat.active !== false)
+        return { data: { categories: filteredCategories } }
       },
       providesTags: result => [
         { type: 'Category', id: 'LIST' },
-        ...(result?.map(category => ({ type: 'Category', id: category._id })) || []),
+        ...(result?.data?.categories?.map(category => ({ type: 'Category', id: category._id })) ||
+          []),
       ],
     }),
 
