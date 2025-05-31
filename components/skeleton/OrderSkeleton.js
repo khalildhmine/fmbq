@@ -1,4 +1,4 @@
-import { Skeleton } from 'components'
+import Skeleton from '@/components/common/Skeleton'
 
 export default function OrderSkeleton() {
   return (

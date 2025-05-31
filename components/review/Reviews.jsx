@@ -1,15 +1,13 @@
 import { useGetProductReviewsQuery } from '@/store/services'
 
-import {
-  Pagination,
-  Icons,
-  ShowWrapper,
-  EmptyComment,
-  ReviewModal,
-  ReveiwSkeleton,
-  ReviewProductCard,
-  RedirectToLogin,
-} from 'components'
+import Pagination from '@/components/Pagination'
+import Icons from '@/components/common/Icons'
+import ShowWrapper from '@/components/common/ShowWrapper'
+import EmptyComment from '@/components/emptyList/EmptyComment'
+import ReviewModal from '@/components/modals/ReviewModal'
+import ReveiwSkeleton from '@/components/skeleton/ReveiwSkeleton'
+import ReviewProductCard from '@/components/review/ReviewProductCard'
+import RedirectToLogin from '@/components/modals/RedirectToLogin'
 
 import { useUrlQuery, useUserInfo, useDisclosure, useChangeRoute } from '@/hooks'
 

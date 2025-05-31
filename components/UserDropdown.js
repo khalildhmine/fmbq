@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { Fragment } from 'react'
-
 import { Menu, Transition } from '@headlessui/react'
-
-import { Icons, Logout, Person } from 'components'
+import Icons from '@/components/common/Icons'
+import Logout from '@/components/Logout'
+import Person from '@/components/svgs/person.svg'
 
 export default function UserDropdown(props) {
   //? Props

@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { useUserInfo } from '@/hooks'
-import Icons from './Icons' // Ensure this import is correct
-import Logout from './Logout'
-import BoxLink from './common/BoxLink'
-import { Orders, Person } from '.'
+import Icons from '@/components/common/Icons'
+import Logout from '@/components/Logout'
+import BoxLink from '@/components/common/BoxLink'
+import Orders from '@/components/order/Orders'
+import Person from '@/components/svgs/person.svg'
 
 export default function ProfileAside() {
   const { userInfo, isLoading } = useUserInfo()

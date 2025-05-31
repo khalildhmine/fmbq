@@ -1,6 +1,6 @@
 import Link from 'next/link'
-
-import { EditIconBtn, ResponsiveImage } from 'components'
+import { EditIconBtn } from '@/components/common/IconBtns'
+import ResponsiveImage from '@/components/common/ResponsiveImage'
 
 const ReviewsTable = props => {
   //? Props

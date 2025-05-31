@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
-import { Icons, NavbarSkeleton, ResponsiveImage } from 'components'
+import Icons from '@/components/common/Icons'
+import NavbarSkeleton from '@/components/skeleton/NavbarSkeleton'
+import ResponsiveImage from '@/components/common/ResponsiveImage'
 
 import { useGetCategoriesQuery } from '@/store/services'
 

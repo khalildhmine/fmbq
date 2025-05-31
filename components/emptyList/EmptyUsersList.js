@@ -1,4 +1,4 @@
-import { Icons } from 'components'
+import Icons from '@/components/common/Icons'
 
 export default function EmptyUsersList() {
   return (

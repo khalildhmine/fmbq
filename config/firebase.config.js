@@ -32,3 +32,4 @@ if (process.env.FIREBASE_PROJECT_ID) {
 }
 
 export const adminApp = firebaseAdmin
+export { admin }

@@ -1,4 +1,4 @@
-import { OrderEmpty } from 'components'
+import OrderEmpty from '@/components/svgs/order-empty.svg'
 
 export default function EmptyCommentsList() {
   return (

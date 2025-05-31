@@ -1,9 +1,8 @@
 'use client'
 
-import React from 'react'
-import { AddressModal } from 'components'
+import React, { Suspense } from 'react'
+import AddressModal from '@/components/modals/AddressModal'
 import { useDisclosure, useUserInfo } from 'hooks'
-import { Suspense } from 'react'
 
 const AddressModalWrapper = ({ isShowAddressModal, addressModalHandlers, userInfo }) => {
   if (!userInfo?.isVerify || userInfo?.isLoading) return null

@@ -1,4 +1,6 @@
-import { BigLoading, Button, EmptyCustomList } from 'components'
+import BigLoading from '@/components/loading/BigLoading'
+import Button from '@/components/common/Buttons'
+import EmptyCustomList from '@/components/emptyList/EmptyCustomList'
 
 export default function ShowWrapper(props) {
   //? Porps

@@ -1,8 +1,6 @@
 import { decrease, increase, removeFromCart } from 'store'
 import { useDispatch } from 'react-redux'
-
-import { Icons } from 'components'
-
+import Icons from '@/components/common/Icons'
 import { formatNumber } from 'utils'
 
 const CartButtons = props => {

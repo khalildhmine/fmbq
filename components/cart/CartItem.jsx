@@ -1,8 +1,10 @@
 import Link from 'next/link'
-
 import { formatNumber } from 'utils'
-
-import { SpecialSell, CartButtons, Icons, DiscountCartItem, ResponsiveImage } from 'components'
+import SpecialSell from '@/components/product/SpecialSell'
+import CartButtons from '@/components/cart/CartButtons'
+import Icons from '@/components/common/Icons'
+import DiscountCartItem from '@/components/cart/DiscountCartItem'
+import ResponsiveImage from '@/components/common/ResponsiveImage'
 
 const CartItem = props => {
   //? Props

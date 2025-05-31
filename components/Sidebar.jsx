@@ -1,15 +1,17 @@
-'use client';
+'use client'
 
-import { useEffect } from 'react';
-import Link from 'next/link';
-import { Disclosure } from '@headlessui/react';
-import { Icons, SidebarSkeleton, LogoH } from 'components';
-import { useDisclosure } from 'hooks';
-import { useGetCategoriesQuery } from '@/store/services';
+import { useEffect } from 'react'
+import Link from 'next/link'
+import { Disclosure } from '@headlessui/react'
+import Icons from '@/components/common/Icons'
+import SidebarSkeleton from '@/components/skeleton/SidebarSkeleton'
+import LogoH from '@/components/svgs/logo-h.svg'
+import { useDisclosure } from 'hooks'
+import { useGetCategoriesQuery } from '@/store/services'
 
 const Sidebar = () => {
   //? Assets
-  const [isSidebar, sidebarHandlers] = useDisclosure();
+  const [isSidebar, sidebarHandlers] = useDisclosure()
 
   //? Get Categories Query
   const { categoriesList, isLoading } = useGetCategoriesQuery(undefined, {
@@ -17,17 +19,17 @@ const Sidebar = () => {
       categoriesList: data?.data?.categoriesList,
       isLoading,
     }),
-  });
+  })
 
   //? Handlers
-  const handleClose = () => sidebarHandlers.close();
+  const handleClose = () => sidebarHandlers.close()
 
   //? Re-Renders
   //* Prevent scroll
   useEffect(() => {
-    if (isSidebar) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = 'unset';
-  }, [isSidebar]);
+    if (isSidebar) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = 'unset'
+  }, [isSidebar])
 
   //? Render(s)
   return (
@@ -143,7 +145,7 @@ const Sidebar = () => {
         </div>
       </div>
     </>
-  );
-};
+  )
+}
 
-export default Sidebar;
+export default Sidebar

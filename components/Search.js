@@ -1,5 +1,6 @@
 import { useDisclosure } from '@/hooks'
-import { Icons, SearchModal } from 'components'
+import Icons from '@/components/common/Icons'
+import SearchModal from '@/components/modals/SearchModal'
 
 export default function Search() {
   //? Assets

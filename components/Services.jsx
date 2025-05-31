@@ -1,4 +1,8 @@
-import { CashOnDelivery, Daysreturn, ExpressDelivery, OriginalProducts, Support } from 'components'
+import CashOnDelivery from '@/components/svgs/cash-on-delivery.svg'
+import Daysreturn from '@/components/svgs/days-return.svg'
+import ExpressDelivery from '@/components/svgs/express-delivery.svg'
+import OriginalProducts from '@/components/svgs/original-products.svg'
+import Support from '@/components/svgs/support.svg'
 
 export default function Services() {
   const services = [

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGetSingleOrderQuery } from '@/store/services/api'
-import { HandleResponse } from '@/components'
+import HandleResponse from '@/components/common/HandleResponse'
 
 // Simple Order Form component for updating order status
 const OrderForm = ({ initialValues, onSubmit, isLoading }) => {

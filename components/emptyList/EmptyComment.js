@@ -1,3 +1,10 @@
+import OrderEmpty from '@/components/svgs/order-empty.svg'
+
 export default function EmptyComment() {
-  return <p className="mt-6 text-red-800">暂时还没有评论，快来成为第一位评论者吧 </p>
+  return (
+    <div className="py-20">
+      <OrderEmpty className="mx-auto h-52 w-52" />
+      <p className="text-center">暂无评论</p>
+    </div>
+  )
 }

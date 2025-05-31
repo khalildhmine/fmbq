@@ -1,4 +1,4 @@
-import { FreeShippingSvg } from 'components'
+import FreeShippingSvg from '@/components/svgs/free-shipping.svg'
 
 export default function FreeShipping() {
   return (

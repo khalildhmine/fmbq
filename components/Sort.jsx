@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 
 import { sorts } from 'utils'
 
-import { Icons, Modal } from 'components'
+import Icons from '@/components/common/Icons'
+import Modal from '@/components/common/Modal'
 
 import { useUrlQuery, useDisclosure } from '@/hooks'
 

@@ -1,4 +1,4 @@
-import { EmptySearch } from 'components'
+import EmptySearch from '@/components/svgs/empty-search.svg'
 import Image from 'next/image'
 
 export default function EmptySearchList() {

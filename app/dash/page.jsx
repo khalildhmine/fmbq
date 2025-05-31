@@ -10,7 +10,6 @@ import {
   UserGroupIcon,
   CurrencyDollarIcon,
   ChartBarIcon,
-  LightningBoltIcon,
   ArrowRightIcon,
   SparklesIcon,
   PresentationChartLineIcon,
@@ -337,7 +336,7 @@ export default function AdminDashboard() {
                     Pending Orders
                   </p>
                   <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center">
-                    <LightningBoltIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <ShoppingBagIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                   </div>
                 </div>
                 <div className="flex items-baseline space-x-1">
