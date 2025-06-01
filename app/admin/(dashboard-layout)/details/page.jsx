@@ -99,7 +99,7 @@ const DetailsContent = () => {
   )
 }
 
-const DetailsPage = () => {
+export default function DetailsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const router = useRouter()
@@ -147,20 +147,5 @@ const DetailsPage = () => {
         </div>
       </div>
     </div>
-  )
-}
-
-// Add metadata
-export const metadata = {
-  title: 'Details | Admin Dashboard',
-  description: 'Admin dashboard details page',
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={<BigLoading />}>
-      <DetailsContent />
-      <DetailsPage />
-    </Suspense>
   )
 }

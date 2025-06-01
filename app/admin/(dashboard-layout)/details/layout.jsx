@@ -28,6 +28,11 @@ function LoadingFallback() {
   )
 }
 
+export const metadata = {
+  title: 'Details | Admin Dashboard',
+  description: 'Admin dashboard details page',
+}
+
 export default function DetailsLayout({ children }) {
   const router = useRouter()
 
