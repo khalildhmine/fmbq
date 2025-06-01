@@ -4,7 +4,8 @@ import { useRef } from 'react'
 
 import { Control, UseFormRegister, useFieldArray } from 'react-hook-form'
 
-import { AddIconBtn, DeleteIconBtn } from '../common/IconButtons'
+import { AddIconBtn, DeleteIconBtn } from '@/components/common/IconBtns'
+import TextField from '@/components/common/TextField'
 
 import { nanoid } from '@reduxjs/toolkit'
 

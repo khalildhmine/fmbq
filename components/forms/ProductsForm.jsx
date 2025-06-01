@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 // Import components
-import { AddColors, AddSizes, SelectCategories } from '../index'
-import { Button } from '../common/Buttons'
-import TextField from '../common/TextField'
-import ImageList from '../product/ImageList.jsx'
-import TextArea from '../common/TextArea'
+import { AddColors, AddSizes, SelectCategories } from '@/components'
+import TextField from '@/components/common/TextField'
+import ImageList from '@/components/product/ImageList'
+import TextArea from '@/components/common/TextArea'
 import BrandSelect from './BrandSelect'
 
 const FORM_STORAGE_KEY = 'product_form_data'

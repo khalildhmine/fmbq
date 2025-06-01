@@ -1,38 +1,45 @@
-import { decrease, increase, removeFromCart } from 'store'
+'use client'
+
+import { decrease, increase, removeFromCart } from '@/store'
 import { useDispatch } from 'react-redux'
-import Icons from '@/components/common/Icons'
-import { formatNumber } from 'utils'
+import { Plus, Minus, Trash } from 'lucide-react'
+import { formatNumber } from '@/utils'
+import { Button } from '@/components/ui/button'
 
-const CartButtons = props => {
-  //? Props
-  const { item } = props
-
-  //? Assets
+const CartButtons = ({ item }) => {
   const dispatch = useDispatch()
 
-  //? Render(s)
   return (
     <div className="flex items-center py-2 text-sm rounded-md shadow-3xl justify-evenly">
-      <button className="active:scale-90" type="button">
-        <Icons.Plus onClick={() => dispatch(increase(item.itemID))} className="text-red-500 icon" />
-      </button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => dispatch(increase(item.itemID))}
+        className="text-red-500"
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
 
       <span className="text-sm min-w-[22px] text-center">{formatNumber(item.quantity)}</span>
 
       {item.quantity === 1 ? (
-        <button className="active:scale-90" type="button">
-          <Icons.Delete
-            onClick={() => dispatch(removeFromCart(item.itemID))}
-            className="text-red-500 icon"
-          />
-        </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => dispatch(removeFromCart(item.itemID))}
+          className="text-red-500"
+        >
+          <Trash className="h-4 w-4" />
+        </Button>
       ) : (
-        <button className="active:scale-90" type="button">
-          <Icons.Minus
-            onClick={() => dispatch(decrease(item.itemID))}
-            className="text-red-500 icon"
-          />
-        </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => dispatch(decrease(item.itemID))}
+          className="text-red-500"
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
       )}
     </div>
   )
