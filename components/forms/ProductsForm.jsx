@@ -7,7 +7,9 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 // Import components
-import { AddColors, AddSizes, SelectCategories } from '@/components'
+import AddColors from '@/components/product/AddColors'
+import AddSizes from '@/components/product/AddSizes'
+import SelectCategories from '@/components/product/SelectCategories'
 import TextField from '@/components/common/TextField'
 import ImageList from '@/components/product/ImageList'
 import TextArea from '@/components/common/TextArea'

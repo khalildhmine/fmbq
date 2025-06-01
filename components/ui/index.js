@@ -1,4 +1,4 @@
-export { default as Card } from './card'
+export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './card'
 export { default as Avatar } from './Avatar'
 export { default as TextInput } from './TextInput'
 export { Button, buttonVariants } from './button'

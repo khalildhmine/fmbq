@@ -3,12 +3,15 @@
 import { useEffect } from 'react'
 import Image from 'next/image'
 
-import { Button, ControlledCheckbox, TextField, UploadImage } from 'components'
+import { Button } from '@/components/ui/button'
+import { ControlledCheckbox } from '@/components/common/Checkbox'
+import TextField from '@/components/common/TextField'
+import UploadImage from '@/components/common/UploadImage'
 
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 
-import { sliderSchema } from 'utils'
+import { sliderSchema } from '@/utils'
 
 const SliderForm = props => {
   //? Props
@@ -97,26 +100,16 @@ const SliderForm = props => {
           <div className="flex justify-evenly gap-x-4 pt-10">
             {mode === 'edit' ? (
               <>
-                <Button
-                  className="bg-amber-500 "
-                  isRounded={true}
-                  type="submit"
-                  isLoading={isLoadingUpdate}
-                >
+                <Button variant="warning" type="submit" isLoading={isLoadingUpdate}>
                   更新
                 </Button>
 
-                <Button className="rounded-3xl" isLoading={isLoadingDelete} onClick={deleteHandler}>
+                <Button variant="danger" isLoading={isLoadingDelete} onClick={deleteHandler}>
                   删除
                 </Button>
               </>
             ) : (
-              <Button
-                className="bg-green-500 "
-                isRounded={true}
-                type="submit"
-                isLoading={isLoadingCreate}
-              >
+              <Button variant="success" type="submit" isLoading={isLoadingCreate}>
                 提交
               </Button>
             )}
