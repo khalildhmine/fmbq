@@ -1,6 +1,4 @@
-'use client'
-
-import React, { Suspense, ErrorBoundary } from 'react'
+import React from 'react'
 import { useRouter } from 'next/navigation'
 
 function ErrorFallback({ error, resetErrorBoundary }) {
@@ -37,17 +35,9 @@ export default function DetailsLayout({ children }) {
   const router = useRouter()
 
   return (
-    <ErrorBoundary
-      FallbackComponent={ErrorFallback}
-      onReset={() => {
-        // Reset the state when recovering from an error
-        router.refresh()
-      }}
-    >
-      <Suspense fallback={<LoadingFallback />}>
-        <div className="min-h-screen bg-gray-100">{children}</div>
-      </Suspense>
-    </ErrorBoundary>
+    <div className="flex flex-col min-h-screen">
+      <main className="flex-grow p-6">{children}</main>
+    </div>
   )
 }
 

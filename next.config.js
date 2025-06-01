@@ -123,15 +123,16 @@ const nextConfig = {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        crypto: false,
-        stream: false,
-        util: false,
+        crypto: require.resolve('crypto-browserify'),
+        stream: require.resolve('stream-browserify'),
+        util: require.resolve('util/'),
+        buffer: require.resolve('buffer/'),
       }
     }
     return config
+  },
+  experimental: {
+    serverActions: true,
   },
 }
 
