@@ -84,15 +84,30 @@ const nextConfig = {
       'images.unsplash.com',
     ],
   },
-  webpack(config) {
+  webpack: (config, { isServer }) => {
+    // Add SVG handling
     config.module.rules.push({
       test: /\.svg$/,
       use: ['@svgr/webpack'],
     })
+
+    // Add path alias
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': path.resolve(__dirname), // Use the path module to resolve the alias
+      '@': path.resolve(__dirname),
     }
+
+    // Add polyfills for client-side only
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        crypto: false,
+        stream: false,
+        util: false,
+        buffer: false,
+      }
+    }
+
     return config
   },
   async redirects() {
@@ -119,20 +134,11 @@ const nextConfig = {
       ],
     }
   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        crypto: require.resolve('crypto-browserify'),
-        stream: require.resolve('stream-browserify'),
-        util: require.resolve('util/'),
-        buffer: require.resolve('buffer/'),
-      }
-    }
-    return config
-  },
   experimental: {
-    serverActions: true,
+    serverActions: {
+      bodySizeLimit: '2mb',
+      allowedOrigins: ['localhost:3000'],
+    },
   },
 }
 
