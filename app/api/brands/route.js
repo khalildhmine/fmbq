@@ -33,6 +33,8 @@ export async function GET(request) {
         color: brand.color || '#F5F5DC',
         description: brand.description || '',
         isInFeed: brand.isInFeed !== false,
+        createdAt: brand.createdAt || new Date(),
+        updatedAt: brand.updatedAt || new Date(),
       }
 
       console.log(`Transformed brand: ${transformedBrand.name}`, transformedBrand)
@@ -99,7 +101,10 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      data: newBrand,
+      data: {
+        ...newBrand,
+        _id: newBrand._id.toString(),
+      },
       message: 'Brand created successfully',
     })
   } catch (error) {

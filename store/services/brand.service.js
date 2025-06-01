@@ -3,22 +3,34 @@ import { api } from '../api'
 export const brandApi = api.injectEndpoints({
   endpoints: builder => ({
     getBrands: builder.query({
-      query: () => '/api/brands',
+      query: () => ({
+        url: '/api/brands',
+        method: 'GET',
+      }),
       keepUnusedDataFor: 300, // Keep unused data in cache for 5 minutes
       transformResponse: response => {
+        console.log('Raw API response:', JSON.stringify(response, null, 2))
+
         if (!response || typeof response !== 'object') {
+          console.error('Invalid response format:', response)
           throw new Error('Invalid response format')
         }
 
         if (!response.success) {
+          console.error('API error:', response.message)
           throw new Error(response?.message || 'Failed to fetch brands')
         }
 
-        // Ensure we always return an array, even if empty
-        const brands = Array.isArray(response.data) ? response.data : []
-        return brands
+        if (!Array.isArray(response.data)) {
+          console.error('Invalid data format:', response.data)
+          throw new Error('Invalid data format - expected an array')
+        }
+
+        // Return the data array directly
+        return response.data
       },
       transformErrorResponse: (response, meta, arg) => {
+        console.error('API error response:', response)
         return {
           status: response.status,
           message: response?.data?.message || 'Failed to fetch brands',
@@ -33,9 +45,14 @@ export const brandApi = api.injectEndpoints({
       },
     }),
     getBrand: builder.query({
-      query: id => `/api/brands/${id}`,
+      query: id => ({
+        url: `/api/brands/${id}`,
+        method: 'GET',
+      }),
       keepUnusedDataFor: 300, // Keep unused data in cache for 5 minutes
       transformResponse: response => {
+        console.log('Raw brand API response:', JSON.stringify(response, null, 2))
+
         if (!response || typeof response !== 'object') {
           throw new Error('Invalid response format')
         }
@@ -61,6 +78,8 @@ export const brandApi = api.injectEndpoints({
         body,
       }),
       transformResponse: response => {
+        console.log('Create brand response:', JSON.stringify(response, null, 2))
+
         if (!response || typeof response !== 'object') {
           throw new Error('Invalid response format')
         }
@@ -72,6 +91,7 @@ export const brandApi = api.injectEndpoints({
         return response.data
       },
       transformErrorResponse: (response, meta, arg) => {
+        console.error('Create brand error:', response)
         return {
           status: response.status,
           message: response?.data?.message || 'Failed to create brand',

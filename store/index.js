@@ -50,12 +50,11 @@ export const store = configureStore({
   devTools: process.env.NODE_ENV !== 'production',
 })
 
-// Enable listener behavior for the store
+// Enable refetchOnFocus and refetchOnReconnect
 setupListeners(store.dispatch)
 
 // Export actions
-export { userLogin, userLogout } from './slices/user.slice'
-export { showAlert, removeAlert } from './slices/alert.slice'
+export { userLogin, userLogout, showAlert, removeAlert }
 export * from './slices/filters.slice'
 export * from './slices/cart.slice'
 export * from './slices/chat.slice'

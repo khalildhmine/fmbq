@@ -5,6 +5,7 @@ import { useGetBrandsQuery, useCreateBrandMutation } from '@/store/services/bran
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { Upload, Trash2, Loader, Plus, Grid, Settings } from 'lucide-react'
+import PageContainer from '@/components/common/PageContainer'
 
 const BrandManager = () => {
   const [newBrandName, setNewBrandName] = useState('')
@@ -15,7 +16,7 @@ const BrandManager = () => {
   const [uploading, setUploading] = useState(false)
   const [imagePreview, setImagePreview] = useState(null)
 
-  const { data: brands, isLoading, isError, error } = useGetBrandsQuery()
+  const { data: brandsList = [], isLoading, isError, error } = useGetBrandsQuery()
   const [createBrand] = useCreateBrandMutation()
 
   // Generate slug from name
@@ -93,8 +94,8 @@ const BrandManager = () => {
       if (!res.ok) throw new Error('Upload failed')
 
       const data = await res.json()
-      setNewBrandLogo(data.url) // Set the actual uploaded image URL
-      setImagePreview(data.url) // Use the actual URL for preview
+      setNewBrandLogo(data.url)
+      setImagePreview(data.url)
       toast.success('Logo uploaded successfully')
     } catch (error) {
       console.error('Upload error:', error)
@@ -121,143 +122,152 @@ const BrandManager = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader className="w-8 h-8 animate-spin" />
-        <span className="ml-2">Loading brands...</span>
-      </div>
+      <PageContainer title="Brand Management">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader className="w-8 h-8 animate-spin" />
+          <span className="ml-2">Loading brands...</span>
+        </div>
+      </PageContainer>
     )
   }
 
   if (isError) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-red-500">
-        <p>Error loading brands: {error?.message || 'Unknown error'}</p>
-      </div>
+      <PageContainer title="Brand Management">
+        <div className="flex items-center justify-center min-h-[400px] text-red-500">
+          <p>Error loading brands: {error?.message || 'Unknown error'}</p>
+        </div>
+      </PageContainer>
     )
   }
 
-  const brandsList = brands || []
-
   return (
-    <div className="max-w-screen-xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Brand Management</h1>
-          <p className="mt-1 text-gray-500">Create and manage your brand portfolio</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-lg border shadow-sm">
-          <div className="p-6 border-b">
-            <h3 className="text-lg font-semibold">Add New Brand</h3>
+    <PageContainer title="Brand Management">
+      <div className="max-w-screen-xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Brand Management</h1>
+            <p className="mt-1 text-gray-500">Create and manage your brand portfolio</p>
           </div>
-          <div className="p-6">
-            <form onSubmit={handleAddBrand} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium mb-2">Brand Name</label>
-                <input
-                  type="text"
-                  value={newBrandName}
-                  onChange={e => setNewBrandName(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2"
-                  placeholder="Enter brand name"
-                  required
-                />
-              </div>
+        </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Brand Color</label>
-                <input
-                  type="color"
-                  value={newBrandColor}
-                  onChange={e => setNewBrandColor(e.target.value)}
-                  className="w-full h-10"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Brand Logo</label>
-                <div className="space-y-4">
-                  {imagePreview && (
-                    <div className="relative inline-block">
-                      <img
-                        src={imagePreview}
-                        alt="Brand logo preview"
-                        className="w-32 h-32 object-contain border rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        onClick={removeImage}
-                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-white rounded-lg border shadow-sm">
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-semibold">Add New Brand</h3>
+            </div>
+            <div className="p-6">
+              <form onSubmit={handleAddBrand} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Brand Name</label>
                   <input
-                    type="file"
-                    onChange={handleImageUpload}
-                    className="w-full"
-                    accept="image/*"
-                    disabled={uploading}
+                    type="text"
+                    value={newBrandName}
+                    onChange={e => setNewBrandName(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    placeholder="Enter brand name"
+                    required
                   />
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting || uploading || !newBrandLogo}
-                className="w-full py-2 px-4 bg-black text-white rounded-md disabled:opacity-50"
-              >
-                {isSubmitting ? 'Creating...' : 'Create Brand'}
-              </button>
-            </form>
-          </div>
-        </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Brand Color</label>
+                  <input
+                    type="color"
+                    value={newBrandColor}
+                    onChange={e => setNewBrandColor(e.target.value)}
+                    className="w-full h-10"
+                  />
+                </div>
 
-        <div className="bg-white rounded-lg border shadow-sm">
-          <div className="p-6 border-b">
-            <h3 className="text-lg font-semibold">Existing Brands</h3>
-          </div>
-          <div className="p-6">
-            {brandsList.length === 0 ? (
-              <p>No brands found</p>
-            ) : (
-              <div className="space-y-4">
-                {brandsList.map(brand => (
-                  <div
-                    key={brand._id}
-                    className="p-4 border rounded-lg"
-                    style={{
-                      backgroundColor: brand.color || '#F5F5DC',
-                      color: getTextColor(brand.color || '#F5F5DC'),
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Brand Logo</label>
+                  <div className="space-y-4">
+                    {imagePreview && (
+                      <div className="relative inline-block">
                         <img
-                          src={brand.logo || 'https://via.placeholder.com/40'}
-                          alt={brand.name}
-                          className="w-10 h-10 rounded-full object-contain bg-white"
+                          src={imagePreview}
+                          alt="Brand logo preview"
+                          className="w-32 h-32 object-contain border rounded-lg"
                         />
-                        <span className="font-medium">{brand.name}</span>
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => router.push(`/admin/brand-manager/edit/${brand._id}`)}
-                        className="px-3 py-1 bg-white text-gray-700 rounded-md shadow-sm"
-                      >
-                        Edit
-                      </button>
-                    </div>
+                    )}
+                    <input
+                      type="file"
+                      onChange={handleImageUpload}
+                      className="w-full"
+                      accept="image/*"
+                      disabled={uploading}
+                    />
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || uploading || !newBrandLogo}
+                  className="w-full py-2 px-4 bg-black text-white rounded-md disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Creating...' : 'Create Brand'}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border shadow-sm">
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-semibold">Existing Brands</h3>
+            </div>
+            <div className="p-6">
+              {brandsList.length === 0 ? (
+                <p>No brands found</p>
+              ) : (
+                <div className="space-y-4">
+                  {brandsList.map(brand => (
+                    <div
+                      key={brand._id}
+                      className="p-4 border rounded-lg"
+                      style={{
+                        backgroundColor: brand.color || '#F5F5DC',
+                        color: getTextColor(brand.color || '#F5F5DC'),
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <img
+                            src={brand.logo || 'https://via.placeholder.com/40'}
+                            alt={brand.name}
+                            className="w-10 h-10 rounded-full object-contain bg-white"
+                          />
+                          <div>
+                            <span className="font-medium">{brand.name}</span>
+                            {brand.description && (
+                              <p className="text-sm opacity-75">{brand.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => router.push(`/admin/brand-manager/edit/${brand._id}`)}
+                          className="px-3 py-1 bg-white text-gray-700 rounded-md shadow-sm"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }
 

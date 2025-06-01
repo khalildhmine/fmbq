@@ -1,17 +1,18 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import DashboardLayout from '@/components/Layouts/DashboardLayout'
+import { useState, useEffect } from 'react'
 import PageContainer from '@/components/common/PageContainer'
 import { useTitle, useUrlQuery } from '@/hooks'
 import Link from 'next/link'
-import { FiPlus, FiEdit2, FiList, FiChevronRight, FiGrid, FiPackage } from 'react-icons/fi'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { FiPlus, FiEdit2, FiList, FiChevronRight } from 'react-icons/fi'
 
-const CategoriesContent = () => {
+export default function Page() {
   useTitle('Classification management')
-  const query = useUrlQuery()
-  const parentId = query.parent_id
-  const parentLvl = query.parent_lvl ? parseInt(query.parent_lvl) : 0
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const parentId = searchParams.get('parent_id') || null
+  const parentLvl = searchParams.get('parent_lvl') ? parseInt(searchParams.get('parent_lvl')) : 0
 
   const [categoryPath, setCategoryPath] = useState([])
   const [categories, setCategories] = useState([])
@@ -22,28 +23,27 @@ const CategoriesContent = () => {
     const fetchCategories = async () => {
       try {
         setLoading(true)
-        const endpoint = parentId
-          ? `/api/category?level=${parentLvl + 1}&parent=${parentId}`
-          : '/api/categories'
-
-        const response = await fetch(endpoint)
+        const response = await fetch('/api/categories')
         const result = await response.json()
 
-        if (parentId) {
-          if (result.success && Array.isArray(result.data)) {
-            setCategories(result.data)
+        if (result.success && Array.isArray(result.data)) {
+          if (parentId) {
+            console.log('Filtering subcategories for parent:', parentId)
+            // Filter categories by parent ID for subcategories
+            const subcategories = result.data.filter(cat => {
+              console.log('Comparing category parent:', cat.parent, 'with parentId:', parentId)
+              return cat.parent && cat.parent.toString() === parentId.toString()
+            })
+            console.log('Found subcategories:', subcategories)
+            setCategories(subcategories)
           } else {
-            console.error('Failed to fetch categories:', result)
-            setCategories([])
-          }
-        } else {
-          if (result.success && Array.isArray(result.data)) {
+            // Filter root categories (with no parent)
             const rootCats = result.data.filter(cat => !cat.parent)
             setCategories(rootCats)
-          } else {
-            console.error('Failed to fetch categories:', result)
-            setCategories([])
           }
+        } else {
+          console.error('Failed to fetch categories:', result)
+          setCategories([])
         }
       } catch (err) {
         console.error('Error fetching categories:', err)
@@ -54,7 +54,7 @@ const CategoriesContent = () => {
     }
 
     fetchCategories()
-  }, [parentId, parentLvl])
+  }, [parentId])
 
   // Build category path
   useEffect(() => {
@@ -68,7 +68,7 @@ const CategoriesContent = () => {
             const allCats = data.data
 
             const buildPath = currentId => {
-              const category = allCats.find(c => c._id === currentId)
+              const category = allCats.find(c => c._id.toString() === currentId.toString())
               if (!category) return []
 
               if (!category.parent) {
@@ -91,6 +91,10 @@ const CategoriesContent = () => {
       setCategoryPath([])
     }
   }, [parentId])
+
+  const handleCategoryClick = (categoryId, level) => {
+    router.push(`/admin/categories?parent_id=${categoryId}&parent_lvl=${level}`)
+  }
 
   const exampleCategories = {
     0: ['Women', 'Men', 'Kids', 'Home', 'Beauty'],
@@ -118,205 +122,181 @@ const CategoriesContent = () => {
     return ''
   }
 
-  // Get parent category
-  const parentCategory =
-    parentId && categories.length > 0 ? categories.find(cat => cat._id === parentId) : null
+  // Get parent category - Fixed logic
+  const parentCategory = categoryPath.length > 0 ? categoryPath[categoryPath.length - 1] : null
 
   // Display loading while fetching
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
-      </div>
+      <PageContainer title="Classification management">
+        <div className="px-3 py-20 text-center">
+          <div className="text-gray-500">Loading...</div>
+        </div>
+      </PageContainer>
     )
   }
 
   return (
     <PageContainer title="Classification management">
-      {/* Breadcrumb and Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div className="flex items-center flex-wrap gap-2 text-sm text-gray-600">
-          <Link
-            href="/admin/categories"
-            className="flex items-center px-3 py-1 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-          >
-            <FiGrid className="mr-1" /> Categories
-          </Link>
+      <section className="p-3">
+        <div className="space-y-8">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Link href="/admin/categories" className="hover:text-blue-600">
+                Categories
+              </Link>
 
-          {categoryPath.map((category, index) => (
-            <div key={category._id} className="flex items-center">
-              <FiChevronRight className="mx-1 text-gray-400" />
+              {Array.isArray(categoryPath) &&
+                categoryPath.map((category, index) => (
+                  <div key={category?._id || index} className="flex items-center">
+                    <FiChevronRight className="mx-1" />
+                    <button
+                      onClick={() => handleCategoryClick(category._id, category.level || 0)}
+                      className={`hover:text-blue-600 ${
+                        index === categoryPath.length - 1 ? 'font-semibold text-blue-700' : ''
+                      }`}
+                    >
+                      {category?.name || 'Unknown'}
+                    </button>
+                  </div>
+                ))}
+            </div>
+            <div className="flex gap-4">
               <Link
-                href={`/admin/categories?parent_id=${category._id}&parent_lvl=${category.level}`}
-                className={`flex items-center px-3 py-1 rounded-md transition-colors ${
-                  index === categoryPath.length - 1
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'bg-gray-100 hover:bg-gray-200'
+                href={`/admin/categories/create?level=${parentLvl ? parentLvl + 1 : 0}${
+                  parentId ? `&parent_id=${parentId}` : ''
                 }`}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
-                {category.name}
+                <FiPlus className="mr-2" /> Add {getLevelName(parentLvl ? parentLvl + 1 : 0)}
+              </Link>
+
+              <Link
+                href="/admin/categories/tree"
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <FiList className="mr-2" /> View Tree
               </Link>
             </div>
-          ))}
-        </div>
+          </div>
 
-        <div className="flex gap-3">
-          <Link
-            href={`/admin/categories/create?level=${parentLvl ? parentLvl + 1 : 0}${
-              parentId ? `&parent_id=${parentId}` : ''
-            }`}
-            className="flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
-          >
-            <FiPlus className="mr-2" /> Add {getLevelName(parentLvl ? parentLvl + 1 : 0)}
-          </Link>
-        </div>
-      </div>
-
-      {/* Parent Category Info */}
-      {parentCategory && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 mb-8 p-4">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <FiPackage className="text-blue-600 text-xl" />
-            </div>
-            <div>
-              <h3 className="text-xl font-semibold text-blue-900">
-                {parentCategory.name}{' '}
-                <span className="text-sm font-normal text-blue-600">
-                  ({getLevelName(parentCategory.level)})
+          {parentCategory && (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <h3 className="text-lg font-medium text-blue-800">
+                {parentCategory?.name || 'Unknown'}{' '}
+                <span className="text-sm text-blue-600">
+                  ({getLevelName(parentCategory?.level || 0)})
                 </span>
               </h3>
-              <p className="text-blue-600 mt-1">
+              <p className="text-sm text-blue-600 mt-1">
                 Showing {categories?.length || 0} child categories
               </p>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Categories Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800">
-            {parentCategory
-              ? `${parentCategory.name} - ${getLevelName(parentLvl + 1)} List`
-              : 'Main Categories'}
-            <span className="text-sm font-normal text-gray-500 ml-2">
-              {getExample(parentLvl ? parentLvl + 1 : 0)}
-            </span>
-          </h2>
-        </div>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-800">
+                {parentCategory
+                  ? `${parentCategory?.name || 'Unknown'} - ${getLevelName(parentLvl + 1)} List`
+                  : 'Main Categories'}
+                <span className="text-sm font-normal text-gray-500 ml-2">
+                  {getExample(parentLvl ? parentLvl + 1 : 0)}
+                </span>
+              </h2>
+            </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 text-left text-gray-600">
-                <th className="px-6 py-3 font-medium">Name</th>
-                <th className="px-6 py-3 font-medium">Slug</th>
-                <th className="px-6 py-3 font-medium text-center">Status</th>
-                <th className="px-6 py-3 font-medium text-center">Featured</th>
-                <th className="px-6 py-3 font-medium text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {categories && categories.length > 0 ? (
-                categories.map(category => (
-                  <tr
-                    key={category._id}
-                    className="text-sm text-gray-700 hover:bg-gray-50/50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-gray-900">{category.name}</span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">{category.slug}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full font-medium ${
-                            category.active !== false
-                              ? 'bg-green-50 text-green-700'
-                              : 'bg-red-50 text-red-700'
-                          }`}
-                        >
-                          {category.active !== false ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full font-medium ${
-                            category.featured
-                              ? 'bg-purple-50 text-purple-700'
-                              : 'bg-gray-50 text-gray-600'
-                          }`}
-                        >
-                          {category.featured ? 'Featured' : 'Standard'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center gap-2">
-                        <Link
-                          href={`/admin/categories/edit/${category._id}`}
-                          className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
-                        >
-                          <FiEdit2 className="mr-1" /> Edit
-                        </Link>
-                        <Link
-                          href={`/admin/categories?parent_id=${category._id}&parent_lvl=${
-                            category.level || 0
-                          }`}
-                          className="inline-flex items-center px-3 py-1 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                        >
-                          <FiList className="mr-1" /> View Subs
-                        </Link>
-                      </div>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full whitespace-nowrap">
+                <thead className="bg-gray-50">
+                  <tr className="text-gray-700 text-sm">
+                    <th className="px-6 py-3 text-left">Name</th>
+                    <th className="px-6 py-3 text-left">Slug</th>
+                    <th className="px-6 py-3 text-center">Status</th>
+                    <th className="px-6 py-3 text-center">Featured</th>
+                    <th className="px-6 py-3 text-center">Actions</th>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center">
-                    <div className="max-w-sm mx-auto">
-                      <div className="flex justify-center mb-4">
-                        <div className="p-3 bg-gray-100 rounded-full">
-                          <FiPackage className="text-gray-400 text-xl" />
-                        </div>
-                      </div>
-                      <p className="text-gray-500 mb-4">
+                </thead>
+                <tbody>
+                  {Array.isArray(categories) && categories.length > 0 ? (
+                    categories.map(category => (
+                      <tr
+                        className="text-sm border-b border-gray-100 hover:bg-gray-50"
+                        key={category?._id || 'unknown'}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900">
+                            {category?.name || 'Unknown'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-500">{category?.slug || 'N/A'}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span
+                            className={`px-2 py-1 text-xs rounded-full ${
+                              category?.active
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {category?.active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span
+                            className={`px-2 py-1 text-xs rounded-full ${
+                              category?.featured
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {category?.featured ? 'Featured' : 'Regular'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center gap-2">
+                            {(category?.level || 0) < 2 && (
+                              <Link
+                                href={`/admin/categories?parent_id=${category?._id}&parent_lvl=${category?.level || 0}`}
+                                className="px-3 py-1 bg-green-100 text-green-600 rounded hover:bg-green-200"
+                              >
+                                View {(category?.level || 0) === 0 ? 'Subcategories' : 'Types'}
+                              </Link>
+                            )}
+                            <Link
+                              href={`/admin/categories/edit/${category?._id}`}
+                              className="flex items-center px-3 py-1 bg-yellow-100 text-yellow-600 rounded hover:bg-yellow-200"
+                            >
+                              <FiEdit2 className="mr-1" /> Edit
+                            </Link>
+                            {(category?.level || 0) < 2 && (
+                              <Link
+                                href={`/admin/categories/create?level=${
+                                  (category?.level || 0) + 1
+                                }&parent_id=${category?._id}`}
+                                className="flex items-center px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
+                              >
+                                <FiPlus className="mr-1" /> Add{' '}
+                                {(category?.level || 0) === 0 ? 'Subcategory' : 'Type'}
+                              </Link>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
                         No categories found. Click "Add{' '}
                         {getLevelName(parentLvl ? parentLvl + 1 : 0)}" to create one.
-                      </p>
-                      <Link
-                        href={`/admin/categories/create?level=${parentLvl ? parentLvl + 1 : 0}${
-                          parentId ? `&parent_id=${parentId}` : ''
-                        }`}
-                        className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
-                      >
-                        <FiPlus className="mr-2" /> Add{' '}
-                        {getLevelName(parentLvl ? parentLvl + 1 : 0)}
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
     </PageContainer>
   )
 }
-
-const CategoriesPage = () => {
-  return (
-    <DashboardLayout>
-      <Suspense fallback={<div>Loading...</div>}>
-        <CategoriesContent />
-      </Suspense>
-    </DashboardLayout>
-  )
-}
-
-export default CategoriesPage

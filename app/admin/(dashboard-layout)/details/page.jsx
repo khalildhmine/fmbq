@@ -1,6 +1,7 @@
 'use client'
 
-import { Suspense } from 'react'
+import React, { Suspense, useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import moment from 'moment-jalaali'
 
@@ -99,11 +100,67 @@ const DetailsContent = () => {
 }
 
 const DetailsPage = () => {
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    // Simulate data loading
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="bg-red-50 p-4 rounded-lg">
+          <p className="text-red-600">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <Suspense fallback={<BigLoading />}>
-      <DetailsContent />
-    </Suspense>
+    <div className="container mx-auto px-4 py-8">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h1 className="text-2xl font-bold mb-4">Details</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <h2 className="text-lg font-semibold mb-2">Overview</h2>
+            <p className="text-gray-600">Details overview content</p>
+          </div>
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <h2 className="text-lg font-semibold mb-2">Statistics</h2>
+            <p className="text-gray-600">Statistics content</p>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
-export default DetailsPage
+// Add metadata
+export const metadata = {
+  title: 'Details | Admin Dashboard',
+  description: 'Admin dashboard details page',
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<BigLoading />}>
+      <DetailsContent />
+      <DetailsPage />
+    </Suspense>
+  )
+}

@@ -20,7 +20,7 @@ const IconButton = forwardRef(
         )}
         {...props}
       >
-        {typeof Icon === 'function' ? <Icon className="w-4 h-4" /> : Icon}
+        {Icon && <Icon size={20} />}
         {children}
       </button>
     )
