@@ -100,11 +100,9 @@ const DetailsContent = () => {
 
 const DetailsPage = () => {
   return (
-    <DashboardLayout>
-      <Suspense fallback={<BigLoading />}>
-        <DetailsContent />
-      </Suspense>
-    </DashboardLayout>
+    <Suspense fallback={<BigLoading />}>
+      <DetailsContent />
+    </Suspense>
   )
 }
 
