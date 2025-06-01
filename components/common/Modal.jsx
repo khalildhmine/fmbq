@@ -1,3 +1,5 @@
+'use client'
+
 import { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { X } from 'lucide-react'
@@ -56,11 +58,25 @@ const Content = ({ children, onClose }) => {
   )
 }
 
+const Header = ({ children }) => {
+  return (
+    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 p-6 pb-0">
+      {children}
+    </Dialog.Title>
+  )
+}
+
 const Body = ({ children }) => {
   return <div className="p-6">{children}</div>
 }
 
+const Footer = ({ children }) => {
+  return <div className="bg-gray-50 px-6 py-3 flex justify-end space-x-3">{children}</div>
+}
+
 Modal.Content = Content
+Modal.Header = Header
 Modal.Body = Body
+Modal.Footer = Footer
 
 export default Modal

@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/components/common/Buttons'
+import { Button } from '@/components/ui/button'
 import Modal from '@/components/common/Modal'
 
 export default function ConfirmDeleteModal(props) {
@@ -18,11 +18,11 @@ export default function ConfirmDeleteModal(props) {
                 确定删除<span className="font-bold text-red-500">{title}</span>吗？
               </p>
               <div className="flex justify-center gap-x-20">
-                <Button onClick={onConfirm} isLoading={isLoading}>
+                <Button onClick={onConfirm} isLoading={isLoading} variant="danger">
                   确定
                 </Button>
 
-                <Button className="!bg-green-500" onClick={onCancel}>
+                <Button onClick={onCancel} variant="success">
                   取消
                 </Button>
               </div>

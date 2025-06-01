@@ -7,7 +7,7 @@ const BrandOverviewPage = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative h-[85vh] overflow-hidden">
+      <section className="relative h-screen overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-800 to-black">
           <div className="absolute inset-0 opacity-20 bg-[url('/luxury-pattern.svg')]"></div>
         </div>
@@ -73,7 +73,7 @@ const BrandOverviewPage = () => {
       {/* Brand Presence */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-6">
-          <div className="grid grid-cols-4 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
             {brandStats.map((stat, index) => (
               <div key={index} className="text-center">
                 <div className="text-4xl font-serif text-gray-900 mb-2">{stat.value}</div>
@@ -87,7 +87,7 @@ const BrandOverviewPage = () => {
       {/* Collections Overview */}
       <section className="py-24 bg-gray-50">
         <div className="container mx-auto px-6">
-          <div className="grid grid-cols-2 gap-24 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
             <div>
               <h2 className="text-4xl font-serif mb-6">Curated Collections</h2>
               <p className="text-gray-600 mb-8 leading-relaxed">
@@ -101,8 +101,9 @@ const BrandOverviewPage = () => {
                       <Image
                         src={collection.image}
                         alt={collection.name}
-                        fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        layout="fill"
+                        objectFit="cover"
+                        className="group-hover:scale-110 transition-transform duration-500"
                       />
                     </div>
                     <div>
@@ -127,8 +128,9 @@ const BrandOverviewPage = () => {
                     <Image
                       src={image}
                       alt="Featured Collection"
-                      fill
-                      className="object-cover hover:scale-105 transition-transform duration-700"
+                      layout="fill"
+                      objectFit="cover"
+                      className="hover:scale-105 transition-transform duration-700"
                     />
                   </div>
                 </div>
@@ -149,15 +151,16 @@ const BrandOverviewPage = () => {
             </p>
           </div>
           
-          <div className="grid grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {locations.map((location, index) => (
               <div key={index} className="group cursor-pointer">
                 <div className="aspect-[16/9] relative overflow-hidden mb-4">
                   <Image
                     src={location.image}
                     alt={location.city}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    layout="fill"
+                    objectFit="cover"
+                    className="group-hover:scale-105 transition-transform duration-500"
                   />
                 </div>
                 <h3 className="text-xl font-serif mb-1">{location.city}</h3>
@@ -171,7 +174,7 @@ const BrandOverviewPage = () => {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-20">
         <div className="container mx-auto px-6">
-          <div className="grid grid-cols-4 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
             <div>
               <div className="font-serif text-xl mb-6">FORMEN & BOUTIQUEEN</div>
               <p className="text-gray-400 text-sm leading-relaxed">
@@ -213,48 +216,48 @@ const collections = [
   {
     name: 'Autumn Essentials 2023',
     pieces: 86,
-    image: '/collections/autumn-2023.jpg'
+    image: 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?ixlib=rb-4.0.3'
   },
   {
     name: 'Evening Elegance',
     pieces: 64,
-    image: '/collections/evening.jpg'
+    image: 'https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?ixlib=rb-4.0.3'
   },
   {
     name: 'Urban Sophisticate',
     pieces: 92,
-    image: '/collections/urban.jpg'
+    image: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?ixlib=rb-4.0.3'
   },
   {
     name: 'Heritage Collection',
     pieces: 45,
-    image: '/collections/heritage.jpg'
+    image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?ixlib=rb-4.0.3'
   }
 ]
 
 const featuredImages = [
-  '/featured/1.jpg',
-  '/featured/2.jpg',
-  '/featured/3.jpg',
-  '/featured/4.jpg',
-  '/featured/5.jpg'
+  'https://images.unsplash.com/photo-1518459031867-a89b944bffe4?ixlib=rb-4.0.3',
+  'https://images.unsplash.com/photo-1507679799987-c73779587ccf?ixlib=rb-4.0.3',
+  'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?ixlib=rb-4.0.3',
+  'https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?ixlib=rb-4.0.3',
+  'https://images.unsplash.com/photo-1604176424472-9d7e10f2f17d?ixlib=rb-4.0.3'
 ]
 
 const locations = [
   {
     city: 'Paris',
     address: '8 Rue du Faubourg Saint-Honoré',
-    image: '/locations/paris.jpg'
+    image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?ixlib=rb-4.0.3'
   },
   {
     city: 'Milan',
     address: 'Via Monte Napoleone, 6',
-    image: '/locations/milan.jpg'
+    image: 'https://images.unsplash.com/photo-1581044777550-4cfa60707c03?ixlib=rb-4.0.3'
   },
   {
     city: 'New York',
     address: '5th Avenue',
-    image: '/locations/newyork.jpg'
+    image: 'https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?ixlib=rb-4.0.3'
   }
 ]
 

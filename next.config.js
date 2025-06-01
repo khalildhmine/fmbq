@@ -81,6 +81,7 @@ const nextConfig = {
       'c.tenor.com',
       'media2.giphy.com',
       'd2b8wt72ktn9a2.cloudfront.net',
+      'images.unsplash.com',
     ],
   },
   webpack(config) {

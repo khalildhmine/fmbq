@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/components/common/Buttons'
+import { Button } from '@/components/ui/button'
 import Modal from '@/components/common/Modal'
 
 const ConfirmUpdateModal = ({ isShow, isLoading, onClose, onConfirm, onCancel }) => {
@@ -14,23 +14,11 @@ const ConfirmUpdateModal = ({ isShow, isLoading, onClose, onConfirm, onCancel })
               Are you sure you want to update this product? This action cannot be undone.
             </p>
             <div className="flex justify-center gap-x-4">
-              <Button
-                onClick={onCancel}
-                type="button"
-                variant="outline"
-                className="w-32"
-                disabled={isLoading}
-              >
+              <Button onClick={onCancel} variant="outline" className="w-32" disabled={isLoading}>
                 Cancel
               </Button>
 
-              <Button
-                onClick={onConfirm}
-                type="button"
-                variant="primary"
-                className="w-32"
-                isLoading={isLoading}
-              >
+              <Button onClick={onConfirm} variant="primary" className="w-32" isLoading={isLoading}>
                 Update
               </Button>
             </div>

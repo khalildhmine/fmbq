@@ -19,9 +19,16 @@ export { default as Combobox } from './common/Combobox'
 export { default as ResponsiveImage } from './common/ResponsiveImage'
 export { default as SubmitModalBtn } from './common/SubmitModalBtn'
 export { default as DisplayError } from './common/DisplayError'
-export { default as CustomCheckbox, default as ControlledCheckbox } from './common/Checkbox'
-export { AddIconBtn, DeleteIconBtn, BackIconBtn, EditIconBtn } from './common/IconBtns'
-export { default as Button } from './common/Button'
+export { CustomCheckbox, ControlledCheckbox } from './common/Checkbox'
+export {
+  AddIconBtn,
+  DeleteIconBtn,
+  BackIconBtn,
+  EditIconBtn,
+  AddToListIconBtn,
+  DeleteFromListIconBtn,
+} from './common/IconBtns'
+export { Button, buttonVariants } from './ui/button'
 export { default as BigLoading } from './common/BigLoading'
 
 //* ─── SVG COMPONENTS ─────────────────────────────────

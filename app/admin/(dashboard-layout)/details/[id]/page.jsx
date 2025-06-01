@@ -16,7 +16,7 @@ import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal'
 import ConfirmUpdateModal from '@/components/modals/ConfirmUpdateModal'
 import DetailsList from '@/components/DetailsList'
 import HandleResponse from '@/components/common/HandleResponse'
-import { Button } from '@/components/common/Buttons'
+import { Button } from '@/components/ui/button'
 
 import { useAppDispatch, useDisclosure } from '@/hooks'
 import { SubmitHandler, useForm } from 'react-hook-form'
@@ -344,30 +344,16 @@ const DetailsContentPage = ({ params: { id } }) => {
               <div className="flex justify-center gap-x-4">
                 {mode === 'edit' ? (
                   <>
-                    <Button
-                      className="bg-amber-500"
-                      isRounded={true}
-                      type="submit"
-                      isLoading={isLoadingUpdate}
-                    >
+                    <Button variant="warning" isLoading={isLoadingUpdate} type="submit">
                       更新分类规格
                     </Button>
 
-                    <Button
-                      className="rounded-3xl"
-                      isLoading={isLoadingDelete}
-                      onClick={deleteHandler}
-                    >
+                    <Button variant="danger" isLoading={isLoadingDelete} onClick={deleteHandler}>
                       删除分类规格
                     </Button>
                   </>
                 ) : (
-                  <Button
-                    className="bg-green-500"
-                    isRounded={true}
-                    type="submit"
-                    isLoading={isLoadingCreate}
-                  >
+                  <Button variant="success" type="submit" isLoading={isLoadingCreate}>
                     建立分类规格
                   </Button>
                 )}

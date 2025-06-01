@@ -25,4 +25,15 @@ const Skeleton = ({ width, height, className = '', style = {} }) => {
   )
 }
 
+const Items = ({ children, className = '' }) => {
+  return <div className={className}>{children}</div>
+}
+
+const Item = ({ animated = false, width = 'w-full', height = 'h-4', className = '' }) => {
+  return <div className={`${animated ? 'animate-pulse' : ''} ${width} ${height} ${className}`} />
+}
+
+Skeleton.Items = Items
+Skeleton.Item = Item
+
 export default Skeleton

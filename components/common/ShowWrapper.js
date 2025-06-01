@@ -1,5 +1,7 @@
+'use client'
+
+import { Button } from '@/components/ui/button'
 import BigLoading from '@/components/loading/BigLoading'
-import Button from '@/components/common/Buttons'
 import EmptyCustomList from '@/components/emptyList/EmptyCustomList'
 
 export default function ShowWrapper(props) {
@@ -23,7 +25,7 @@ export default function ShowWrapper(props) {
         <div className="py-20 mx-auto space-y-3 text-center w-fit">
           <h5 className="text-xl">出现异常</h5>
           <p className="text-lg text-red-500">{error?.data?.err}</p>
-          <Button className="mx-auto" onClick={refetch}>
+          <Button variant="primary" onClick={refetch}>
             重试
           </Button>
         </div>
