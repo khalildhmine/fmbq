@@ -1,20 +1,36 @@
 'use client'
 
 import { useSelector } from 'react-redux'
-import jwt from 'jsonwebtoken'
+import { jwtVerify } from 'jose'
+import { useState, useEffect } from 'react'
 
 export default function useVerify() {
   const token = useSelector(state => state.user?.token)
+  const [isValid, setIsValid] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
-  if (!token) {
-    return false
-  }
+  useEffect(() => {
+    const verifyToken = async () => {
+      if (!token) {
+        setIsValid(false)
+        setIsLoading(false)
+        return
+      }
 
-  try {
-    const decoded = jwt.verify(token, process.env.NEXT_PUBLIC_ACCESS_TOKEN_SECRET)
-    return !!decoded
-  } catch (error) {
-    console.error('Token verification error:', error)
-    return false
-  }
+      try {
+        const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_ACCESS_TOKEN_SECRET)
+        const { payload } = await jwtVerify(token, secret)
+        setIsValid(!!payload)
+      } catch (error) {
+        console.error('Token verification error:', error)
+        setIsValid(false)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    verifyToken()
+  }, [token])
+
+  return { isValid, isLoading }
 }

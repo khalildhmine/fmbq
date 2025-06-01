@@ -1,5 +1,7 @@
 import React from 'react'
-import { useRouter } from 'next/navigation'
+
+// Remove the "use client" directive since we're exporting metadata
+// If you need client-side functionality, create separate client components
 
 function ErrorFallback({ error, resetErrorBoundary }) {
   return (
@@ -26,21 +28,16 @@ function LoadingFallback() {
   )
 }
 
+// This is now valid since we removed "use client"
 export const metadata = {
   title: 'Details | Admin Dashboard',
   description: 'Admin dashboard details page',
 }
 
 export default function DetailsLayout({ children }) {
-  const router = useRouter()
-
   return (
     <div className="flex flex-col min-h-screen">
       <main className="flex-grow p-6">{children}</main>
     </div>
   )
 }
-
-// Add runtime configuration
-export const runtime = 'edge' // Use Edge Runtime
-export const dynamic = 'force-dynamic' // Force dynamic rendering
