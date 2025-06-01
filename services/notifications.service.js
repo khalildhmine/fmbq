@@ -1,8 +1,72 @@
-import { adminApp } from '../config/firebase.config'
 import { Expo } from 'expo-server-sdk'
 
 // Initialize Expo SDK
 const expo = new Expo()
+
+export async function sendNotification({ tokens, title, body, data = {} }) {
+  try {
+    if (!tokens || tokens.length === 0) {
+      console.warn('No push tokens provided')
+      return { success: false, error: 'No push tokens provided' }
+    }
+
+    // Create the messages array
+    const messages = tokens.map(token => ({
+      to: token,
+      sound: 'default',
+      title,
+      body,
+      data,
+    }))
+
+    // Filter out invalid tokens
+    const validMessages = messages.filter(message => Expo.isExpoPushToken(message.to))
+
+    if (validMessages.length === 0) {
+      console.warn('No valid Expo push tokens')
+      return { success: false, error: 'No valid Expo push tokens' }
+    }
+
+    // Send notifications in chunks
+    const chunks = expo.chunkPushNotifications(validMessages)
+    const tickets = []
+
+    for (let chunk of chunks) {
+      try {
+        const ticketChunk = await expo.sendPushNotificationsAsync(chunk)
+        tickets.push(...ticketChunk)
+      } catch (error) {
+        console.error('Error sending chunk:', error)
+      }
+    }
+
+    return { success: true, tickets }
+  } catch (error) {
+    console.error('Notification error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function checkNotificationStatus(receiptIds) {
+  try {
+    const receiptIdChunks = expo.chunkPushNotificationReceiptIds(receiptIds)
+    const receipts = []
+
+    for (let chunk of receiptIdChunks) {
+      try {
+        const receipt = await expo.getPushNotificationReceiptsAsync(chunk)
+        receipts.push(receipt)
+      } catch (error) {
+        console.error('Error checking receipts:', error)
+      }
+    }
+
+    return { success: true, receipts }
+  } catch (error) {
+    console.error('Receipt check error:', error)
+    return { success: false, error: error.message }
+  }
+}
 
 export class NotificationService {
   static async sendPushNotification(pushToken, title, message, data = {}) {
@@ -29,12 +93,6 @@ export class NotificationService {
         data,
         priority: 'high',
         channelId: 'default',
-      }
-
-      // Skip if Firebase is not configured
-      if (!adminApp) {
-        console.warn('Firebase is not configured. Skipping push notification.')
-        return null
       }
 
       console.log('Created notification payload:', notification)
