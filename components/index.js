@@ -90,6 +90,7 @@ export { default as DynamicOrdersTable } from './admin/DynamicOrdersTable'
 export { default as DynamicUsersTable } from './admin/DynamicUsersTable'
 export { default as OrderDetailsModal } from './admin/OrderDetailsModal'
 export { default as OrderPrintManager } from './admin/OrderPrintManager'
+export { default as CategoryManager } from './admin/CategoryManager'
 
 //* ─── LAYOUT COMPONENTS ───────────────────────────────
 export { default as ClientLayout } from './Layouts/ClientLayout'
@@ -107,8 +108,9 @@ export { default as TableSkeleton } from './skeleton/TableSkeleton'
 
 //* ─── FORMS ───────────────────────────────────────────
 export { default as LoginForm } from './forms/LoginForm'
-export { default as CheckboxField } from './forms/CheckboxField'
+export { default as RegisterForm } from './forms/RegisterForm'
 export { default as ProductsForm } from './forms/ProductsForm'
+export { default as SliderForm } from './forms/SliderForm'
 
 //* ─── EMPTY LIST COMPONENTS ───────────────────────────
 export { default as EmptyCommentsList } from './emptyList/EmptyCommentsList'

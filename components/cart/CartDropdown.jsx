@@ -1,94 +1,91 @@
+'use client'
+
 import { Fragment } from 'react'
 import { useRouter } from 'next/navigation'
-
-import { formatNumber } from 'utils'
-
-import { useUserInfo, useDisclosure, useAppSelector } from 'hooks'
-
 import { Menu, Transition } from '@headlessui/react'
-import ArrowLink from '@/components/common/ArrowLink'
-import CartItem from '@/components/cart/CartItem'
+import { useUserInfo } from '@/hooks'
+import { useAppSelector } from '@/hooks'
+import { formatNumber } from '@/utils'
+import CartBadge from './CartBadge'
+import CartItem from './CartItem'
 import RedirectToLogin from '@/components/modals/RedirectToLogin'
-import Button from '@/components/common/Buttons'
-import CartBadge from '@/components/cart/CartBadge'
 import EmptyCart from '@/components/svgs/empty-cart.svg'
+import Image from 'next/image'
 
-export default function CartDropdown() {
-  //? Assets
-  const { push } = useRouter()
+const CartDropdown = () => {
+  const router = useRouter()
   const { isVerify } = useUserInfo()
-  const [isShowRedirectModal, redirectModalHandlers] = useDisclosure()
-
-  //? Store
   const { totalItems, cartItems, totalDiscount, totalPrice } = useAppSelector(state => state.cart)
 
-  //? Handlers
-  const handleRoute = () => {
-    if (!isVerify) return redirectModalHandlers.open()
-
-    push('/checkout/shipping')
+  const handleCheckout = () => {
+    if (!isVerify) {
+      router.push('/auth/login')
+      return
+    }
+    router.push('/checkout/shipping')
   }
 
-  //? Render(s)
   return (
-    <>
-      <RedirectToLogin
-        title="您尚未登录"
-        text=""
-        onClose={redirectModalHandlers.close}
-        isShow={isShowRedirectModal}
-      />
+    <Menu as="div" className="relative">
+      <Menu.Button className="relative">
+        <CartBadge />
+      </Menu.Button>
 
-      <Menu as="div" className="dropdown">
-        <Menu.Button className="dropdown__button">
-          <CartBadge />
-        </Menu.Button>
-
-        <Transition
-          as={Fragment}
-          enter="transition ease-out duration-100"
-          enterFrom="transform opacity-0 scale-95"
-          enterTo="transform opacity-100 scale-100"
-          leave="transition ease-in duration-75"
-          leaveFrom="transform opacity-100 scale-100"
-          leaveTo="transform opacity-0 scale-95"
-        >
-          <Menu.Items className="dropdown__items w-[440px]">
-            {totalItems > 0 ? (
-              <>
-                {/* Header */}
-                <div className="flex items-center justify-between px-3 py-4">
-                  <span className="">{totalItems} 件商品</span>
-                  <ArrowLink path="/checkout/cart">查看购物车</ArrowLink>
-                </div>
-                {/* Itmes */}
-                <div className="mx-1 overflow-y-auto divide-y divide-gray-50 h-80">
-                  {cartItems.map(item => (
-                    <CartItem item={item} key={item.itemID} />
-                  ))}
-                </div>
-                {/* Footer */}
-                <div className="flex items-center justify-between p-3 border-t">
-                  <div>
-                    <span>应付金额</span>
-                    <div className="flex-center">
-                      <span className="text-sm">{formatNumber(totalPrice - totalDiscount)}</span>
-                      <span className="ml-1">MRU </span>
-                    </div>
-                  </div>
-
-                  <Button onClick={handleRoute}>去支付</Button>
-                </div>
-              </>
+      <Transition
+        as={Fragment}
+        enter="transition ease-out duration-100"
+        enterFrom="transform opacity-0 scale-95"
+        enterTo="transform opacity-100 scale-100"
+        leave="transition ease-in duration-75"
+        leaveFrom="transform opacity-100 scale-100"
+        leaveTo="transform opacity-0 scale-95"
+      >
+        <Menu.Items className="absolute right-0 mt-2 w-96 origin-top-right bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+          <div className="p-4">
+            {totalItems === 0 ? (
+              <div className="flex flex-col items-center py-8">
+                <Image src={EmptyCart} alt="Empty Cart" width={120} height={120} />
+                <p className="mt-4 text-gray-500">您的购物车是空的</p>
+              </div>
             ) : (
               <>
-                <EmptyCart className="mx-auto h-44 w-44" />
-                <p className="pt-2 text-base font-bold text-center">你的购物车是空的！</p>
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {cartItems.map(item => (
+                    <CartItem key={item.itemID} item={item} isDropdown />
+                  ))}
+                </div>
+
+                <div className="mt-4 pt-4 border-t">
+                  <div className="flex justify-between text-sm">
+                    <span>小计:</span>
+                    <span>¥{formatNumber(totalPrice)}</span>
+                  </div>
+                  {totalDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-red-500 mt-1">
+                      <span>折扣:</span>
+                      <span>-¥{formatNumber(totalDiscount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-medium mt-2">
+                    <span>总计:</span>
+                    <span>¥{formatNumber(totalPrice - totalDiscount)}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleCheckout}
+                    className="w-full mt-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    结算
+                  </button>
+                </div>
               </>
             )}
-          </Menu.Items>
-        </Transition>
-      </Menu>
-    </>
+          </div>
+        </Menu.Items>
+      </Transition>
+    </Menu>
   )
 }
+
+export default CartDropdown

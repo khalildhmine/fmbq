@@ -1,71 +1,79 @@
+'use client'
+
 import Link from 'next/link'
-import { formatNumber } from 'utils'
+import { useDispatch } from 'react-redux'
+import { removeFromCart } from '@/store/slices/cart.slice'
+import { formatNumber } from '@/utils'
 import SpecialSell from '@/components/product/SpecialSell'
-import CartButtons from '@/components/cart/CartButtons'
+import CartButtons from './CartButtons'
 import Icons from '@/components/common/Icons'
 import DiscountCartItem from '@/components/cart/DiscountCartItem'
 import ResponsiveImage from '@/components/common/ResponsiveImage'
 
-const CartItem = props => {
-  //? Props
-  const { item } = props
+const CartItem = ({ item, isDropdown = false }) => {
+  const dispatch = useDispatch()
 
-  //? Render(s)
+  const imageUrl = item.images?.find(img => img.primary)?.url || item.images?.[0]?.url || ''
+  const finalPrice = item.finalPrice || item.price
+  const hasDiscount = item.discount > 0
+
   return (
-    <article className="flex px-4 py-5 space-x-4 ">
-      {/* image & cartButtons */}
-      <div className="space-y-4">
-        <ResponsiveImage dimensions="w-28 h-28" src={item.img.url} alt={item.name} />
+    <div className="flex gap-x-2 p-3 bg-white rounded-lg shadow">
+      <Link href={`/products/${item.productID}`} className="relative w-20 h-20">
+        <ResponsiveImage src={imageUrl} alt={item.name} />
+      </Link>
 
-        <div className="mx-auto w-fit ">
-          <SpecialSell discount={item.discount} inStock={item.inStock} />
-        </div>
+      <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-x-2">
+          <Link
+            href={`/products/${item.productID}`}
+            className="text-sm font-medium line-clamp-2 hover:text-blue-600"
+          >
+            {item.name}
+          </Link>
 
-        <CartButtons item={item} />
-      </div>
-
-      {/* name */}
-      <div>
-        <h5 className="mb-3 text-sm">
-          <Link href={`/products/${item.productID}`}>{item.name}</Link>
-        </h5>
-
-        {/* info */}
-        <div className="space-y-3">
-          {item.color && (
-            <div className="flex items-center gap-x-2">
-              <span
-                className="inline-block w-5 h-5 shadow rounded-xl"
-                style={{ background: item.color.hashCode }}
-              />
-              <span>{item.color.name}</span>
-            </div>
-          )}
-          {item.size && (
-            <div className="flex items-center gap-x-2">
-              <Icons.Rule className="icon" />
-              <span className="">{item.size.size}</span>
-            </div>
-          )}
-          <div className="flex items-center gap-x-2">
-            <Icons.ShieldCheck className="icon" />
-            <span className="font-light">正品保证和发货保证</span>
-          </div>
-          <div className="flex items-center gap-x-2">
-            <Icons.Save className="icon text-sky-400" />
-            <span className="font-light">仓库有售</span>
-          </div>
-          {item.discount > 0 ? (
-            <DiscountCartItem discount={item.discount} price={item.price} />
-          ) : (
-            <div className="flex items-center gap-x-2">
-              <span className="text-sm text-gray-700">{formatNumber(item.price)}</span>
-              <span className="">MRU </span>
-            </div>
+          {!isDropdown && (
+            <button
+              type="button"
+              onClick={() => dispatch(removeFromCart(item.itemID))}
+              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <Icons.X className="w-4 h-4 text-gray-500" />
+            </button>
           )}
         </div>
+
+        {(item.color || item.size) && (
+          <div className="flex items-center gap-x-2 mt-1 text-xs text-gray-500">
+            {item.color && (
+              <div className="flex items-center gap-x-1">
+                <span>颜色:</span>
+                <span className="font-medium">{item.color.name}</span>
+              </div>
+            )}
+            {item.size && (
+              <div className="flex items-center gap-x-1">
+                <span>尺寸:</span>
+                <span className="font-medium">{item.size.size}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-end justify-between mt-auto">
+          <div className="flex items-baseline gap-x-2">
+            <span className="font-medium">¥{formatNumber(finalPrice)}</span>
+            {hasDiscount && (
+              <span className="text-sm text-gray-400 line-through">
+                ¥{formatNumber(item.price)}
+              </span>
+            )}
+          </div>
+
+          <CartButtons item={item} />
+        </div>
       </div>
-    </article>
+    </div>
   )
 }
 

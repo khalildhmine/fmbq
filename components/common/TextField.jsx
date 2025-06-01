@@ -1,13 +1,26 @@
 'use client'
 
 import { Controller } from 'react-hook-form'
+import DisplayError from './DisplayError'
 
-const TextField = ({ label, control, name, errors, ...props }) => {
+const TextField = ({
+  label,
+  control,
+  name,
+  errors,
+  type = 'text',
+  direction = 'rtl',
+  className = '',
+  inputMode,
+  ...props
+}) => {
   return (
-    <div className="mb-4">
-      <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor={name}>
-        {label}
-      </label>
+    <div className={`mb-4 ${className}`}>
+      {label && (
+        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor={name}>
+          {label}
+        </label>
+      )}
       <Controller
         name={name}
         control={control}
@@ -16,13 +29,16 @@ const TextField = ({ label, control, name, errors, ...props }) => {
             {...field}
             {...props}
             id={name}
+            type={type}
+            inputMode={inputMode}
+            style={{ direction }}
             className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
               errors ? 'border-red-500' : ''
             }`}
           />
         )}
       />
-      {errors && <p className="text-red-500 text-xs italic">{errors.message}</p>}
+      <DisplayError errors={errors} />
     </div>
   )
 }

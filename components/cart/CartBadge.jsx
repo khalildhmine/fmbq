@@ -1,23 +1,22 @@
+'use client'
+
+import { useAppSelector } from '@/hooks'
+import { formatNumber } from '@/utils'
 import Icons from '@/components/common/Icons'
 
-import { formatNumber } from 'utils'
-
-import { useAppSelector } from 'hooks'
-
-export default function CartBadge() {
-  //? Store
+const CartBadge = () => {
   const { totalItems } = useAppSelector(state => state.cart)
 
-  //? Render(s)
   return (
     <div className="relative">
-      {totalItems ? (
-        <span className="absolute outline outline-2 bottom-3.5 left-5 bg-red-500 rounded-md w-5 h-5 p-0.5 text-center text-xs text-white">
+      {totalItems > 0 && (
+        <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] text-xs text-white bg-red-500 rounded-full px-1">
           {formatNumber(totalItems)}
         </span>
-      ) : null}
-
-      <Icons.Cart className="icon h-7 w-7" />
+      )}
+      <Icons.ShoppingCart className="w-6 h-6" />
     </div>
   )
 }
+
+export default CartBadge
