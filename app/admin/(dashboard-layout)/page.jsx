@@ -408,7 +408,7 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="space-y-8">
-          <ChartCard title="Revenue Trends" subtitle="Monthly revenue overview">
+          {/* <ChartCard title="Revenue Trends" subtitle="Monthly revenue overview">
             {loading ? (
               <div className="flex justify-center items-center h-48">
                 <div className="w-10 h-10 border-t-4 border-b-4 border-black dark:border-white rounded-full animate-spin"></div>
@@ -423,7 +423,7 @@ export default function AdminDashboardPage() {
                 </p>
               </div>
             )}
-          </ChartCard>
+          </ChartCard> */}
 
           {/* Recent Products Card */}
           <ChartCard title="Recent Products" subtitle="Latest products added">

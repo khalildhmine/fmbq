@@ -15,6 +15,11 @@ const OrderSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    assignedTo: {
+      type: mongoose.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     orderId: {
       type: String,
       required: true,
@@ -109,6 +114,7 @@ const OrderSchema = new mongoose.Schema(
         'pending',
         'pending_verification',
         'processing',
+        'picked',
         'shipped',
         'delivered',
         'completed',
@@ -206,8 +212,9 @@ const OrderSchema = new mongoose.Schema(
 OrderSchema.methods.canTransitionTo = function (newStatus) {
   const validTransitions = {
     pending: ['processing', 'pending_verification', 'cancelled'],
-    pending_verification: ['processing', 'cancelled'],
-    processing: ['shipped', 'cancelled'],
+    pending_verification: ['processing', 'picked', 'cancelled'],
+    processing: ['picked', 'shipped', 'cancelled'],
+    picked: ['delivered', 'cancelled'],
     shipped: ['delivered', 'cancelled'],
     delivered: ['completed', 'cancelled'],
     completed: [],

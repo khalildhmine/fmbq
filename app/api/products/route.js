@@ -328,38 +328,116 @@ export async function GET(req) {
     await connectToDatabase()
 
     const { searchParams } = new URL(req.url)
-    const limit = searchParams.get('limit') || 10
-    const page = searchParams.get('page') || 1
-    const category = searchParams.get('category')
-    const search = searchParams.get('search')
 
-    // Build query
-    const query = {}
-    if (category) {
-      query.category = category
+    // Build query object
+    const query = {
+      inStock: { $gt: 0 }, // Only show products with stock by default
     }
+
+    // Pagination
+    const page = parseInt(searchParams.get('page')) || 1
+    const limit = parseInt(searchParams.get('limit')) || 20
+    const skip = (page - 1) * limit
+
+    // Search
+    const search = searchParams.get('search')
     if (search) {
       query.$or = [
-        { title: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
       ]
     }
 
-    const products = await Product.find(query)
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
-      .skip((page - 1) * limit)
+    // Category and brand filters
+    const category = searchParams.get('category')
+    if (category) query.category = category
+
+    const brand = searchParams.get('brand')
+    if (brand) query.brand = brand
+
+    // Price range
+    const price_min = searchParams.get('price_min')
+    const price_max = searchParams.get('price_max')
+    if (price_min || price_max) {
+      query.price = {}
+      if (price_min) query.price.$gte = parseFloat(price_min)
+      if (price_max) query.price.$lte = parseFloat(price_max)
+    }
+
+    // Colors and sizes
+    const colors = searchParams.get('colors')
+    if (colors) {
+      query.colors = { $in: colors.split(',') }
+    }
+
+    const sizes = searchParams.get('sizes')
+    if (sizes) {
+      query.sizes = { $in: sizes.split(',') }
+    }
+
+    // Boolean filters
+    const inStock = searchParams.get('inStock')
+    if (inStock === 'false') {
+      delete query.inStock // Remove the default inStock filter
+    }
+
+    const discount = searchParams.get('discount')
+    if (discount === 'true') {
+      query.discount = { $gt: 0 }
+    }
+
+    // Sorting
+    let sort = {}
+    const sortField = searchParams.get('sort') || 'createdAt'
+    const order = searchParams.get('order') || 'desc'
+    sort[sortField] = order === 'desc' ? -1 : 1
+
+    console.log('Query:', JSON.stringify(query, null, 2))
+    console.log('Sort:', sort)
+
+    // Execute query
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .populate('brand', 'name logo')
+        .populate('category', 'name')
+        .lean(),
+      Product.countDocuments(query),
+    ])
+
+    console.log(`Found ${products.length} products out of ${total} total`)
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(total / limit)
+    const hasNextPage = page < totalPages
+    const hasPrevPage = page > 1
 
     return NextResponse.json({
       success: true,
       data: {
         products,
-        total: await Product.countDocuments(query),
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages,
+          hasNextPage,
+          hasPrevPage,
+        },
       },
     })
   } catch (error) {
     console.error('Error in products API:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch products' }, { status: 500 })
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to fetch products',
+        message: error.message,
+      },
+      { status: 500 }
+    )
   }
 }
 

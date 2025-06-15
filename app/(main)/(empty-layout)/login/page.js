@@ -21,16 +21,13 @@ const DynamicLoginForm = dynamic(() => import('@/components/forms/LoginForm'), {
 })
 
 const LoginContent = () => {
-  //? Assets
   const dispatch = useDispatch()
   const { replace } = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirectTo')
 
-  //? Login User
   const [login, { data, isSuccess, isError, isLoading, error }] = useLoginMutation()
 
-  //? Handlers
   const submitHander = async formData => {
     try {
       const result = await login({
@@ -38,11 +35,24 @@ const LoginContent = () => {
       }).unwrap()
 
       if (result.success) {
+        // Store token and user role
+        localStorage.setItem('token', result.data.token)
+        localStorage.setItem('userRole', result.data.user.role)
+
+        // Dispatch login action
         dispatch(userLogin({ user: result.data.user, token: result.data.token }))
-        replace(redirectTo || '/')
+
+        // Handle redirection based on user role
+        if (result.data.user.role === 'admin') {
+          console.log('Admin user detected, redirecting to admin panel')
+          window.location.href = '/admin'
+        } else {
+          // For regular users, use the redirectTo param or default to home
+          replace(redirectTo || '/')
+        }
       }
     } catch (err) {
-      console.error('Login failed:', err)
+      console.error('Login error:', err)
     }
   }
 

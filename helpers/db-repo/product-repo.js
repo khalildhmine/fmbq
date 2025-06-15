@@ -120,34 +120,107 @@ const getItemDetail = async id => {
       return { notFound: true, error: 'Invalid product ID' }
     }
 
-    let product
-
-    try {
-      // First attempt - with full population
-      product = await Product.findById({ _id: id })
-        .populate('categoryHierarchy.mainCategory')
-        .populate('categoryHierarchy.subCategory')
-        .populate('categoryHierarchy.leafCategory')
-        .populate({
-          path: 'brand',
-          select: 'name logo description slug', // Select the fields we want from brand
-        })
-        .lean()
-    } catch (populateError) {
-      console.error('Population failed, trying without brand population:', populateError)
-
-      // Second attempt - without brand population
-      product = await Product.findById({ _id: id })
-        .populate('categoryHierarchy.mainCategory')
-        .populate('categoryHierarchy.subCategory')
-        .populate('categoryHierarchy.leafCategory')
-        .lean()
-    }
+    const product = await Product.findById(id)
+      .populate('brand', 'name logo description slug')
+      .populate('categoryHierarchy.mainCategory')
+      .populate('categoryHierarchy.subCategory')
+      .populate('categoryHierarchy.leafCategory')
+      // Important: Explicitly include sizes and colors in the selection
+      .select('+sizes +colors +specification +features +description')
+      .lean()
 
     if (!product) {
       console.error(`Product with ID ${id} not found`)
       return { notFound: true, error: 'Product not found' }
     }
+
+    // Transform sizes to ensure consistent structure
+    product.sizes = (product.sizes || []).map(size => ({
+      id: size._id || size.id,
+      size: size.size || size.name,
+      available: size.available !== false,
+      inStock: size.inStock || size.stock || 0,
+    }))
+
+    // Transform colors to ensure consistent structure
+    product.colors = (product.colors || []).map(color => ({
+      id: color._id || color.id,
+      name: color.name,
+      hashCode: color.hashCode || color.code,
+      available: color.available !== false,
+      inStock: color.inStock || color.stock || 0,
+    }))
+
+    // Debug log for sizes and colors
+    console.log('\n🎨 Product Options:')
+    console.log('Sizes:', product.sizes.length, 'items')
+    product.sizes.forEach(s =>
+      console.log(`- ${s.size}: ${s.available ? 'Available' : 'Out of Stock'}`)
+    )
+    console.log('Colors:', product.colors.length, 'items')
+    product.colors.forEach(c => console.log(`- ${c.name}: ${c.hashCode}`))
+
+    // Detailed logging of all product attributes
+    console.log('🔍 PRODUCT DETAILS LOG:')
+    console.log('----------------------------------------')
+    console.log('📌 Basic Information:')
+    console.log(`ID: ${product._id}`)
+    console.log(`Title: ${product.title}`)
+    console.log(`Price: ${product.price}`)
+    console.log(`Discount: ${product.discount}%`)
+    console.log(`In Stock: ${product.inStock}`)
+    console.log(`Description: ${product.description?.substring(0, 50)}...`)
+
+    console.log('\n📌 Brand Information:')
+    console.log(`Brand ID: ${product.brand?._id}`)
+    console.log(`Brand Name: ${product.brand?.name}`)
+    console.log(`Brand Logo: ${product.brand?.logo}`)
+
+    console.log('\n📌 Images:')
+    console.log(`Total Images: ${product.images?.length || 0}`)
+    product.images?.forEach((img, index) => {
+      console.log(`Image ${index + 1}: ${img.url}`)
+    })
+
+    console.log('\n📌 Sizes:')
+    console.log(`Total Sizes: ${product.sizes?.length || 0}`)
+    product.sizes?.forEach(size => {
+      console.log(`- Size: ${size.size}, ID: ${size.id}, Stock: ${size.stock}`)
+    })
+
+    console.log('\n📌 Colors:')
+    console.log(`Total Colors: ${product.colors?.length || 0}`)
+    product.colors?.forEach(color => {
+      console.log(
+        `- Color: ${color.name}, ID: ${color.id}, Hash: ${color.hashCode}, Stock: ${color.stock}`
+      )
+    })
+
+    console.log('\n📌 Category Information:')
+    console.log('Main Category:', product.categoryHierarchy?.mainCategory?._id)
+    console.log('Sub Category:', product.categoryHierarchy?.subCategory?._id)
+    console.log('Leaf Category:', product.categoryHierarchy?.leafCategory?._id)
+
+    console.log('\n📌 Additional Information:')
+    console.log(`Gender: ${product.gender}`)
+    console.log(`Options Type: ${product.optionsType}`)
+    console.log(`Slug: ${product.slug}`)
+    console.log(`Free Shipping: ${product.freeShipping}`)
+    console.log(`Return Policy: ${product.returnPolicy}`)
+
+    console.log('\n📌 Specifications:')
+    console.log(`Total Specs: ${product.specification?.length || 0}`)
+    product.specification?.forEach(spec => {
+      console.log(`- ${spec.title}: ${spec.value}`)
+    })
+
+    console.log('\n📌 Features:')
+    console.log(`Total Features: ${product.features?.length || 0}`)
+    product.features?.forEach(feature => {
+      console.log(`- ${feature}`)
+    })
+
+    console.log('----------------------------------------')
 
     // Safe handling if category is empty or undefined
     let productCategoryID = null
@@ -196,9 +269,21 @@ const getItemDetail = async id => {
         }
 
         smilarProducts = await Product.find(similarQuery)
-          .select('-description -info -specification -sizes -reviews -numReviews')
+          .select('title price images discount brand inStock sizes colors')
           .limit(11)
           .lean()
+
+        // Log similar products
+        console.log('\n📌 Similar Products:')
+        console.log(`Total Similar Products: ${smilarProducts.length}`)
+        smilarProducts.forEach((prod, index) => {
+          console.log(`\nSimilar Product ${index + 1}:`)
+          console.log(`- ID: ${prod._id}`)
+          console.log(`- Title: ${prod.title}`)
+          console.log(`- Price: ${prod.price}`)
+          console.log(`- Sizes: ${prod.sizes?.length || 0}`)
+          console.log(`- Colors: ${prod.colors?.length || 0}`)
+        })
       } catch (similarProductsError) {
         console.error('Error fetching similar products:', similarProductsError)
         // Continue with empty similar products array
@@ -208,7 +293,7 @@ const getItemDetail = async id => {
     return {
       product,
       smilarProducts: {
-        title: '类似商品',
+        title: 'Similar Products',
         products: smilarProducts,
       },
     }

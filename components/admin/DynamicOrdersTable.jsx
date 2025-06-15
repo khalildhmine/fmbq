@@ -258,9 +258,8 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
 
   // Update orders when initialOrders changes
   useEffect(() => {
-    if (initialOrders && initialOrders.length > 0) {
-      setOrders(initialOrders.map(formatOrderData))
-    }
+    console.log('Initial orders received:', initialOrders)
+    setOrders(initialOrders)
   }, [initialOrders])
 
   // Handle refresh button click

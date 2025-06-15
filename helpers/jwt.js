@@ -7,22 +7,7 @@ const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-s
 export const verifyToken = async token => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
-
-    // Ensure we have a valid user ID and role
-    const userId = decoded.id || decoded.userId || decoded._id
-    const role = decoded.role || 'user'
-
-    if (!userId) {
-      console.error('No user ID found in token')
-      return null
-    }
-
-    return {
-      userId,
-      role,
-      email: decoded.email,
-      isAdmin: role === 'admin' || decoded.root === true,
-    }
+    return decoded
   } catch (error) {
     console.error('Token verification failed:', error)
     return null
@@ -52,6 +37,9 @@ export const generateAccessToken = user => {
   }
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '15m' })
 }
+
+// Export validateToken as alias for verifyToken for backwards compatibility
+export const validateToken = verifyToken
 
 export default {
   verifyToken,

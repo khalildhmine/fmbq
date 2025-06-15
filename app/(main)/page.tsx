@@ -17,143 +17,48 @@ import {
 
 const BrandOverviewPage = () => {
   return (
-    // UPGRADED: Full-screen, glassy, editorial, with blurred gradients and brown/gold accents
-    <div className="min-h-screen w-full bg-gradient-to-br from-black via-[#18181b] to-[#232526] relative overflow-x-hidden font-sans">
-      {/* Futuristic blurred brown/gold gradients */}
+    <div className="min-h-screen w-full bg-gradient-to-br from-black via-[#18181b] to-[#232526] relative overflow-x-hidden font-sans text-white">
+      {/* Background Elements */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute -top-40 -left-40 w-[700px] h-[700px] rounded-full bg-[#a47551]/20 blur-3xl"></div>
         <div className="absolute top-1/2 right-0 w-[500px] h-[500px] rounded-full bg-[#a47551]/10 blur-2xl"></div>
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[1200px] h-[400px] bg-gradient-to-r from-[#a47551]/20 via-transparent to-[#a47551]/20 blur-2xl"></div>
       </div>
 
-      {/* Hero Section - Modern Nike-inspired */}
-      <section className="relative h-screen overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-gray-900 to-black">
-          <div className="absolute inset-0 opacity-10 bg-[url('https://images.unsplash.com/photo-1529139574466-a303027c1d8b?ixlib=rb-4.0.3')]"></div>
-        </div>
-
-        {/* Dynamic elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute h-[800px] w-[800px] rounded-full bg-purple-500/10 blur-3xl -top-[400px] -right-[400px]"></div>
-          <div className="absolute h-[600px] w-[600px] rounded-full bg-blue-500/10 blur-3xl bottom-[10%] -left-[300px]"></div>
-        </div>
-
-        <div className="container mx-auto px-6 py-8 relative z-10">
-          <nav className="flex items-center justify-between mb-16">
-            <div className="flex items-center">
-              <div className="text-white font-bold text-3xl tracking-tighter">
-                FORMEN & BOUTIQUEEN
-              </div>
-            </div>
-            <div className="flex space-x-12">
-              <a
-                href="#collections"
-                className="text-white/90 hover:text-white transition-colors text-sm uppercase tracking-wider"
-              >
-                Collections
-              </a>
-              <a
-                href="#presence"
-                className="text-white/90 hover:text-white transition-colors text-sm uppercase tracking-wider"
-              >
-                Présence Mondiale
-              </a>
-              <a
-                href="#heritage"
-                className="text-white/90 hover:text-white transition-colors text-sm uppercase tracking-wider"
-              >
-                Héritage
-              </a>
-              <a
-                href="#contact"
-                className="text-white/90 hover:text-white transition-colors text-sm uppercase tracking-wider"
-              >
-                Contact
-              </a>
-            </div>
-          </nav>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mt-20">
-            <div>
-              <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-3 py-1 mb-6">
-                <span className="bg-purple-400 rounded-full w-2 h-2 mr-2"></span>
-                <span className="text-purple-100 text-sm">NOUVELLE COLLECTION</span>
-              </div>
-
-              <h1 className="text-7xl font-bold text-white mb-8 leading-none">
-                L'ÉLÉGANCE <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
-                  REDÉFINIE
-                </span>
-              </h1>
-
-              <p className="text-xl text-white/80 mb-12 leading-relaxed max-w-xl">
-                Découvrez l'art de la mode sophistiquée avec notre collection exclusive qui
-                transcende les saisons.
-              </p>
-
-              <div className="flex gap-8">
-                <Link
-                  href="/collections"
-                  className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-medium flex items-center transition-all group text-sm uppercase tracking-wider hover:shadow-lg hover:shadow-purple-500/20"
-                >
-                  Explorer la Collection
-                  <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link
-                  href="/about"
-                  className="px-8 py-4 text-white border border-white/30 hover:bg-white/10 rounded-full font-medium transition-all text-sm uppercase tracking-wider"
-                >
-                  Notre Histoire
-                </Link>
-              </div>
-            </div>
-            <div className="relative hidden lg:block">
-              <div className="absolute top-0 right-0 w-[500px] h-[500px]">
-                <Image
-                  src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?ixlib=rb-4.0.3"
-                  alt="Fashion Model"
-                  layout="fill"
-                  objectFit="cover"
-                  className="rounded-2xl"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent rounded-2xl"></div>
-              </div>
-              <div className="absolute -bottom-20 -left-20 w-[300px] h-[400px]">
-                <Image
-                  src="https://images.unsplash.com/photo-1496747611176-843222e1e57c?ixlib=rb-4.0.3"
-                  alt="Fashion Detail"
-                  layout="fill"
-                  objectFit="cover"
-                  className="rounded-2xl"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent rounded-2xl"></div>
-              </div>
-            </div>
+      {/* Hero Section */}
+      <section className="relative h-screen flex items-center justify-center">
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-gray-900 to-black opacity-80"></div>
+        <div className="container mx-auto px-6 py-8 relative z-10 text-center">
+          <h1 className="text-7xl font-extrabold mb-8 leading-none">
+            FORMEN & BOUTIQUEEN <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
+              REDÉFINIE
+            </span>
+          </h1>
+          <p className="text-xl text-white/80 mb-12 leading-relaxed max-w-xl mx-auto">
+            Découvrez l'art de la mode sophistiquée avec notre collection exclusive qui transcende
+            les saisons.
+          </p>
+          <div className="flex justify-center gap-8">
+            <Link
+              href="/collections"
+              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-medium flex items-center transition-all group text-sm uppercase tracking-wider hover:shadow-lg hover:shadow-purple-500/20"
+            >
+              Explorer la Collection
+              <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link
+              href="/about"
+              className="px-8 py-4 text-white border border-white/30 hover:bg-white/10 rounded-full font-medium transition-all text-sm uppercase tracking-wider"
+            >
+              Notre Histoire
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Featured Products - Fashion Nova Style */}
-      {/* <section className="py-24 bg-white">
-        <div className="container mx-auto px-6">
-          <div className="flex justify-between items-end mb-12">
-            <div>
-              <span className="text-purple-600 text-sm font-medium uppercase tracking-wider">
-                Tendances
-              </span>
-              <h2 className="text-4xl font-bold mt-2">Produits Vedettes</h2>
-            </div>
-            <Link href="/products" className="text-purple-600 flex items-center group">
-              Voir Tout
-              <ChevronRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-        </div>
-      </section> */}
-
-      {/* Brand Story - Sophisticated */}
-      <section className="py-24 bg-gray-50">
+      {/* Brand Story Section */}
+      <section className="py-24 bg-gray-50 text-black">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
@@ -206,12 +111,8 @@ const BrandOverviewPage = () => {
         </div>
       </section>
 
-      {/* Collections Showcase - Grok x Fashion Nova Fusion */}
-      <section
-        id="collections"
-        className="relative py-32 bg-gradient-to-br from-black via-[#18181b] to-[#232526] text-white overflow-hidden"
-      >
-        {/* Futuristic blurred neon and gold/brown accents */}
+      {/* Collections Showcase */}
+      <section className="relative py-32 bg-gradient-to-br from-black via-[#18181b] to-[#232526] text-white overflow-hidden">
         <div className="pointer-events-none absolute inset-0 z-0">
           <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-[#A47551]/30 blur-3xl"></div>
           <div className="absolute top-1/3 right-0 w-[400px] h-[400px] rounded-full bg-[#a47551]/20 blur-2xl"></div>
@@ -222,7 +123,9 @@ const BrandOverviewPage = () => {
           <div className="flex flex-col items-center mb-20">
             <div className="inline-flex items-center bg-white/5 backdrop-blur-sm rounded-full px-4 py-1.5 mb-6 border border-[#a47551]/30 shadow-lg">
               <span className="bg-gradient-to-r from-[#a47551] to-[#f5e7da] rounded-full w-2 h-2 mr-2"></span>
-              <span className="text-[#a47551] text-sm font-semibold tracking-widest">COLLECTIONS EXCLUSIVES</span>
+              <span className="text-[#a47551] text-sm font-semibold tracking-widest">
+                COLLECTIONS EXCLUSIVES
+              </span>
             </div>
             <h2 className="text-6xl font-extrabold mt-2 mb-6 text-center tracking-tight drop-shadow-lg">
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#a47551] via-white to-[#a47551]">
@@ -230,7 +133,8 @@ const BrandOverviewPage = () => {
               </span>
             </h2>
             <p className="text-gray-300 max-w-2xl mx-auto text-center text-xl font-light">
-              Des pièces intemporelles qui définissent l'élégance moderne et reflètent notre engagement envers l'excellence et le raffinement français.
+              Des pièces intemporelles qui définissent l'élégance moderne et reflètent notre
+              engagement envers l'excellence et le raffinement français.
             </p>
           </div>
 
@@ -260,7 +164,8 @@ const BrandOverviewPage = () => {
                       {collection.name}
                     </h3>
                     <p className="text-[#a47551] text-lg mb-6 font-medium">
-                      {collection.description || "Une collection qui incarne l'essence du luxe contemporain, où chaque pièce raconte une histoire d'élégance et de savoir-faire."}
+                      {collection.description ||
+                        "Une collection qui incarne l'essence du luxe contemporain, où chaque pièce raconte une histoire d'élégance et de savoir-faire."}
                     </p>
                     <Link
                       href={`/collections/${collection.slug || collection.name.toLowerCase().replace(/\s+/g, '-')}`}
@@ -287,8 +192,8 @@ const BrandOverviewPage = () => {
         </div>
       </section>
 
-      {/* Video Section - Modern */}
-      <section className="py-24 bg-white">
+      {/* Video Section */}
+      <section className="py-24 bg-white text-black">
         <div className="container mx-auto px-6">
           <div className="relative aspect-[21/9] rounded-2xl overflow-hidden">
             <Image
@@ -316,8 +221,8 @@ const BrandOverviewPage = () => {
         </div>
       </section>
 
-      {/* Global Presence - Sophisticated */}
-      <section id="presence" className="py-24 bg-gray-50">
+      {/* Global Presence Section */}
+      <section id="presence" className="py-24 bg-gray-50 text-black">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <span className="text-purple-600 text-sm font-medium uppercase tracking-wider">
@@ -362,7 +267,7 @@ const BrandOverviewPage = () => {
         </div>
       </section>
 
-      {/* Newsletter - Fashion Nova Style */}
+      {/* Newsletter Section */}
       <section className="py-24 bg-gradient-to-r from-purple-900 to-indigo-900 text-white">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center">

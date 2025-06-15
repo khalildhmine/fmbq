@@ -21,10 +21,7 @@ const verifyToken = async (req, isJwt) => {
       throw new Error('No authentication token found')
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.NEXT_PUBLIC_ACCESS_TOKEN_SECRET || 'your-secret-key'
-    )
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
     const id = decoded.id
 
     return id
@@ -38,29 +35,46 @@ const verifyToken = async (req, isJwt) => {
 }
 
 const createAccessToken = payload => {
-  return jwt.sign(payload, process.env.NEXT_PUBLIC_ACCESS_TOKEN_SECRET || 'your-secret-key', {
+  return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: '7d',
   })
 }
 
-export const validateToken = async request => {
+export async function validateToken(request) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return { success: false, message: 'No token provided' }
+    // Get token from all possible sources
+    let token =
+      request.headers.get('Authorization')?.replace('Bearer ', '') ||
+      request.cookies?.get('token')?.value ||
+      request.cookies?.get('auth')?.value
+
+    if (!token) {
+      console.log('No token found')
+      return { success: false, error: 'No token provided' }
     }
 
-    const token = authHeader.split(' ')[1]
+    console.log('Validating token:', token.substring(0, 20) + '...')
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    console.log('Token decoded:', {
+      id: decoded.id,
+      role: decoded.role,
+      isAdmin: decoded.role === 'admin',
+    })
 
     return {
       success: true,
-      user: decoded,
+      userId: decoded.id,
+      email: decoded.email,
+      role: decoded.role,
+      isAdmin: decoded.role === 'admin',
     }
   } catch (error) {
+    console.error('Token validation error:', error)
     return {
       success: false,
-      message: 'Invalid token',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     }
   }
 }

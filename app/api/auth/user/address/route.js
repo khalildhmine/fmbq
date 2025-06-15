@@ -3,6 +3,35 @@ import jwt from 'jsonwebtoken'
 import { setJson } from '@/helpers/api'
 import { ObjectId } from 'mongodb'
 import { connectToDatabase } from '@/helpers/db'
+import joi from 'joi'
+
+// Address validation schema
+const addressSchema = joi.object({
+  province: joi
+    .object({
+      code: joi.string().required(),
+      name: joi.string().required(),
+    })
+    .required(),
+  city: joi
+    .object({
+      code: joi.string().required(),
+      name: joi.string().required(),
+    })
+    .required(),
+  area: joi
+    .object({
+      code: joi.string().required(),
+      name: joi.string().required(),
+    })
+    .required(),
+  street: joi.string().required(),
+  postalCode: joi.string().allow(''),
+  isDefault: joi.boolean().default(false),
+  label: joi.string().valid('home', 'work', 'other').default('home'),
+  recipientName: joi.string().required(),
+  recipientPhone: joi.string().required(),
+})
 
 // Helper to extract token from request
 const getTokenFromRequest = req => {
@@ -13,7 +42,7 @@ const getTokenFromRequest = req => {
   // Then check Authorization header
   const authHeader = req.headers.get('Authorization')
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7) // Remove 'Bearer ' prefix
+    return authHeader.substring(7)
   }
 
   return null
@@ -75,38 +104,7 @@ const findUserDirectly = async (userId, req) => {
       async () => {
         console.log('Trying with string comparison')
         const allUsers = await db.collection('users').find({}).toArray()
-        console.log(`Checking ${allUsers.length} users for ID match`)
-
-        // Log first few users for debugging
-        if (allUsers.length > 0) {
-          console.log(
-            'Sample user IDs:',
-            allUsers.slice(0, 3).map(u => `${u._id} (${typeof u._id})`)
-          )
-        }
-
-        const user = allUsers.find(u => String(u._id) === userId)
-        return user || null
-      },
-
-      // Try by email if we can find it in a token
-      async () => {
-        const token = getTokenFromRequest(req)
-        if (!token) return null
-
-        try {
-          const decoded = jwt.verify(
-            token,
-            process.env.NEXT_PUBLIC_ACCESS_TOKEN_SECRET || 'your-secret-key'
-          )
-          if (decoded.email) {
-            console.log('Trying lookup by email:', decoded.email)
-            return await db.collection('users').findOne({ email: decoded.email })
-          }
-        } catch (e) {
-          console.log('Token email lookup failed')
-        }
-        return null
+        return allUsers.find(u => String(u._id) === userId) || null
       },
     ]
 
@@ -127,15 +125,13 @@ const findUserDirectly = async (userId, req) => {
   }
 }
 
-// GET endpoint to fetch user address
+// GET endpoint to fetch user addresses
 export async function GET(req) {
   try {
     console.log('GET /api/auth/user/address - Request received')
     console.log('Headers:', Object.fromEntries([...req.headers.entries()]))
 
-    // Get user ID from request
     const userId = getUserIdFromRequest(req)
-
     if (!userId) {
       console.log('GET /api/auth/user/address - No user ID found')
       return setJson({ message: 'Unauthorized - Cannot identify user' }, 401)
@@ -145,217 +141,267 @@ export async function GET(req) {
 
     // First try to find user directly through MongoDB
     const directUser = await findUserDirectly(userId, req)
-
     if (directUser) {
       console.log(`GET /api/auth/user/address - Found user directly: ${directUser._id}`)
-      console.log(
-        `GET /api/auth/user/address - Address data: ${JSON.stringify(directUser.address || null)}`
-      )
 
-      return setJson(
-        {
-          data: directUser.address || null,
-        },
-        200
-      )
+      // Return array of addresses or empty array if none exist
+      const addresses = directUser.addresses || []
+      if (addresses.length === 0 && directUser.address) {
+        // Convert legacy single address to array format
+        addresses.push({
+          ...directUser.address,
+          isDefault: true,
+          _id: new ObjectId(),
+          createdAt: new Date(),
+        })
+      }
+
+      return setJson({ data: addresses }, 200)
     }
-
-    console.log('Direct lookup failed, trying repository...')
 
     // Fall back to repository approach
-    let user = null
-    try {
-      user = await usersRepo.getById(userId)
-    } catch (userError) {
-      console.error(`GET /api/auth/user/address - Error fetching user: ${userError.message}`)
-      // Try backup approach already tried in direct lookup, no need to repeat
-    }
-
+    let user = await usersRepo.getById(userId)
     if (!user) {
       console.log(`GET /api/auth/user/address - User not found with ID: ${userId}`)
       return setJson({ message: 'User not found' }, 404)
     }
 
-    console.log(
-      `GET /api/auth/user/address - Found address: ${JSON.stringify(user.address || null)}`
-    )
+    // Handle legacy single address format
+    const addresses = user.addresses || []
+    if (addresses.length === 0 && user.address) {
+      addresses.push({
+        ...user.address,
+        isDefault: true,
+        _id: new ObjectId(),
+        createdAt: new Date(),
+      })
+    }
 
-    // Return just the address data or null if not set
-    return setJson(
-      {
-        data: user.address || null,
-      },
-      200
-    )
+    return setJson({ data: addresses }, 200)
   } catch (error) {
     console.error('Error in address API:', error)
     return setJson({ message: error.message || 'Internal server error' }, 500)
   }
 }
 
-// PUT endpoint to update user address
-export async function PUT(req) {
-  try {
-    console.log('PUT /api/auth/user/address - Request received')
-    console.log('Headers:', Object.fromEntries([...req.headers.entries()]))
-
-    // Get user ID from request
-    const userId = getUserIdFromRequest(req)
-
-    if (!userId) {
-      console.log('PUT /api/auth/user/address - No user ID found')
-      return setJson({ message: 'Unauthorized - Cannot identify user' }, 401)
-    }
-
-    console.log(`PUT /api/auth/user/address - User ID: ${userId}`)
-
-    // Parse request body
-    const body = await req.json()
-    const { address } = body
-
-    console.log(`PUT /api/auth/user/address - Request body: ${JSON.stringify(body)}`)
-
-    if (!address) {
-      console.log('PUT /api/auth/user/address - No address data provided')
-      return setJson({ message: 'Address data is required' }, 400)
-    }
-
-    // First try to find user directly
-    const directUser = await findUserDirectly(userId, req)
-
-    if (directUser) {
-      console.log(`PUT /api/auth/user/address - Found user directly: ${directUser._id}`)
-
-      // Update directly with MongoDB
-      try {
-        const { db } = await connectToDatabase()
-        const result = await db
-          .collection('users')
-          .updateOne({ _id: directUser._id }, { $set: { address, updatedAt: new Date() } })
-
-        console.log(`Direct update result: ${JSON.stringify(result)}`)
-
-        if (result.modifiedCount > 0) {
-          const updatedUser = await db.collection('users').findOne({ _id: directUser._id })
-          return setJson(
-            {
-              success: true,
-              data: updatedUser.address,
-            },
-            200
-          )
-        }
-      } catch (updateError) {
-        console.error('Direct update failed:', updateError)
-      }
-    }
-
-    // Fall back to repository
-    console.log('Falling back to repository for update')
-    const updatedUser = await usersRepo.update(userId, { address })
-
-    if (!updatedUser) {
-      console.log('PUT /api/auth/user/address - Update failed, user not found')
-      return setJson({ message: 'User not found or update failed' }, 404)
-    }
-
-    console.log(
-      `PUT /api/auth/user/address - Address updated: ${JSON.stringify(updatedUser.address)}`
-    )
-
-    // Return the updated address data
-    return setJson(
-      {
-        success: true,
-        data: updatedUser.address,
-      },
-      200
-    )
-  } catch (error) {
-    console.error('Error in update address API:', error)
-    return setJson({ message: error.message || 'Internal server error' }, 500)
-  }
-}
-
-// POST endpoint to create a new address for user (same as PUT in functionality)
+// POST endpoint to add a new address
 export async function POST(req) {
   try {
     console.log('POST /api/auth/user/address - Request received')
-    console.log('Headers:', Object.fromEntries([...req.headers.entries()]))
 
-    // Get user ID from request
     const userId = getUserIdFromRequest(req)
-
     if (!userId) {
-      console.log('POST /api/auth/user/address - No user ID found')
       return setJson({ message: 'Unauthorized - Cannot identify user' }, 401)
     }
 
-    console.log(`POST /api/auth/user/address - User ID: ${userId}`)
-
-    // Parse request body
+    // Parse and validate request body
     const body = await req.json()
-    const { address } = body
-
-    console.log(`POST /api/auth/user/address - Request body: ${JSON.stringify(body)}`)
-
-    if (!address) {
-      console.log('POST /api/auth/user/address - No address data provided')
-      return setJson({ message: 'Address data is required' }, 400)
+    const { error, value: address } = addressSchema.validate(body)
+    if (error) {
+      return setJson(
+        {
+          message: 'Invalid address data',
+          errors: error.details.map(detail => detail.message),
+        },
+        400
+      )
     }
 
-    // First try to find user directly
-    const directUser = await findUserDirectly(userId, req)
+    // Find user
+    const { db } = await connectToDatabase()
+    const user = await findUserDirectly(userId, req)
+    if (!user) {
+      return setJson({ message: 'User not found' }, 404)
+    }
 
-    if (directUser) {
-      console.log(`POST /api/auth/user/address - Found user directly: ${directUser._id}`)
+    // Prepare new address
+    const newAddress = {
+      ...address,
+      _id: new ObjectId(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
 
-      // Update directly with MongoDB
-      try {
-        const { db } = await connectToDatabase()
-        const result = await db
-          .collection('users')
-          .updateOne({ _id: directUser._id }, { $set: { address, updatedAt: new Date() } })
+    // Handle default address logic
+    const addresses = user.addresses || []
+    if (newAddress.isDefault) {
+      // Remove default flag from other addresses
+      addresses.forEach(addr => (addr.isDefault = false))
+    } else if (addresses.length === 0) {
+      // Make first address default
+      newAddress.isDefault = true
+    }
 
-        console.log(`Direct update result: ${JSON.stringify(result)}`)
+    // Add new address
+    addresses.push(newAddress)
 
-        if (result.modifiedCount > 0) {
-          const updatedUser = await db.collection('users').findOne({ _id: directUser._id })
-          return setJson(
-            {
-              success: true,
-              data: updatedUser.address,
-            },
-            201
-          )
-        }
-      } catch (updateError) {
-        console.error('Direct update failed:', updateError)
+    // Update user
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          addresses,
+          updatedAt: new Date(),
+        },
       }
-    }
-
-    // Fall back to repository
-    const updatedUser = await usersRepo.update(userId, { address })
-
-    if (!updatedUser) {
-      console.log('POST /api/auth/user/address - Update failed, user not found')
-      return setJson({ message: 'User not found or update failed' }, 404)
-    }
-
-    console.log(
-      `POST /api/auth/user/address - Address created: ${JSON.stringify(updatedUser.address)}`
     )
 
-    // Return the created address data
     return setJson(
       {
         success: true,
-        data: updatedUser.address,
+        data: newAddress,
       },
       201
     )
   } catch (error) {
-    console.error('Error in create address API:', error)
+    console.error('Error adding address:', error)
+    return setJson({ message: error.message || 'Internal server error' }, 500)
+  }
+}
+
+// PUT endpoint to update an address
+export async function PUT(req) {
+  try {
+    console.log('PUT /api/auth/user/address - Request received')
+
+    const userId = getUserIdFromRequest(req)
+    if (!userId) {
+      return setJson({ message: 'Unauthorized - Cannot identify user' }, 401)
+    }
+
+    // Parse and validate request body
+    const body = await req.json()
+    const { addressId, address } = body
+
+    if (!addressId) {
+      return setJson({ message: 'Address ID is required' }, 400)
+    }
+
+    const { error, value: validatedAddress } = addressSchema.validate(address)
+    if (error) {
+      return setJson(
+        {
+          message: 'Invalid address data',
+          errors: error.details.map(detail => detail.message),
+        },
+        400
+      )
+    }
+
+    // Find user
+    const { db } = await connectToDatabase()
+    const user = await findUserDirectly(userId, req)
+    if (!user) {
+      return setJson({ message: 'User not found' }, 404)
+    }
+
+    // Find address to update
+    const addresses = user.addresses || []
+    const addressIndex = addresses.findIndex(addr => String(addr._id) === String(addressId))
+    if (addressIndex === -1) {
+      return setJson({ message: 'Address not found' }, 404)
+    }
+
+    // Handle default address logic
+    if (validatedAddress.isDefault) {
+      addresses.forEach(addr => (addr.isDefault = false))
+    }
+
+    // Update address
+    addresses[addressIndex] = {
+      ...addresses[addressIndex],
+      ...validatedAddress,
+      updatedAt: new Date(),
+    }
+
+    // Update user
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          addresses,
+          updatedAt: new Date(),
+        },
+      }
+    )
+
+    return setJson(
+      {
+        success: true,
+        data: addresses[addressIndex],
+      },
+      200
+    )
+  } catch (error) {
+    console.error('Error updating address:', error)
+    return setJson({ message: error.message || 'Internal server error' }, 500)
+  }
+}
+
+// DELETE endpoint to remove an address
+export async function DELETE(req) {
+  try {
+    console.log('DELETE /api/auth/user/address - Request received')
+
+    const userId = getUserIdFromRequest(req)
+    if (!userId) {
+      return setJson({ message: 'Unauthorized - Cannot identify user' }, 401)
+    }
+
+    // Get address ID from URL
+    const url = new URL(req.url)
+    const addressId = url.searchParams.get('addressId')
+    if (!addressId) {
+      return setJson({ message: 'Address ID is required' }, 400)
+    }
+
+    // Find user
+    const { db } = await connectToDatabase()
+    const user = await findUserDirectly(userId, req)
+    if (!user) {
+      return setJson({ message: 'User not found' }, 404)
+    }
+
+    // Find and remove address
+    const addresses = user.addresses || []
+    const addressIndex = addresses.findIndex(addr => String(addr._id) === String(addressId))
+    if (addressIndex === -1) {
+      return setJson({ message: 'Address not found' }, 404)
+    }
+
+    // Don't allow deleting the only default address
+    if (addresses[addressIndex].isDefault && addresses.length === 1) {
+      return setJson({ message: 'Cannot delete the only address' }, 400)
+    }
+
+    // Remove address
+    addresses.splice(addressIndex, 1)
+
+    // If we removed the default address, make another one default
+    if (addresses.length > 0 && addresses[addressIndex]?.isDefault) {
+      addresses[0].isDefault = true
+    }
+
+    // Update user
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          addresses,
+          updatedAt: new Date(),
+        },
+      }
+    )
+
+    return setJson(
+      {
+        success: true,
+        message: 'Address deleted successfully',
+      },
+      200
+    )
+  } catch (error) {
+    console.error('Error deleting address:', error)
     return setJson({ message: error.message || 'Internal server error' }, 500)
   }
 }

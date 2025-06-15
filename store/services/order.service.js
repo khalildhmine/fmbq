@@ -4,7 +4,7 @@ export const orderApiSlice = apiSlice.injectEndpoints({
   endpoints: builder => ({
     getOrdersList: builder.query({
       query: ({ page = 1, pageSize = 10 }) => ({
-        url: `/api/order/list?page=${page}&page_size=${pageSize}`,
+        url: `/api/orders?page=${page}&page_size=${pageSize}&admin=true`,
         method: 'GET',
       }),
       providesTags: (result, error, arg) =>

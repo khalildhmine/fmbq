@@ -1,109 +1,51 @@
 import { NextResponse } from 'next/server'
-import { connectToDatabase } from '@/lib/mongoose'
-import { Product } from '@/models'
-import mongoose from 'mongoose'
-const { ObjectId } = mongoose.Types
+import { productRepo } from '@/helpers/db-repo/product-repo'
+import { connectToDatabase } from '@/helpers/db'
 
 // GET a single product by ID
-export async function GET(req, context) {
+export async function GET(request, { params }) {
   try {
     await connectToDatabase()
 
-    // Get and validate params
-    const params = await context.params
+    const { id } = params
+    console.log('Fetching product details for ID:', id)
 
-    // Ensure we have a valid ID
-    if (!params?.id) {
+    const result = await productRepo.getItemDetail(id)
+
+    if (result.notFound) {
+      console.error('Product not found:', result.error)
       return NextResponse.json(
-        { success: false, message: 'Product ID is required' },
-        { status: 400 }
+        {
+          success: false,
+          error: 'Product not found',
+        },
+        { status: 404 }
       )
     }
 
-    const productId = params.id
+    // Validate sizes and colors data
+    const { product } = result
+    if (!product.sizes) product.sizes = []
+    if (!product.colors) product.colors = []
 
-    // Validate ObjectId format
-    if (!ObjectId.isValid(productId)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid product ID format' },
-        { status: 400 }
-      )
-    }
+    console.log('Product options found:', {
+      sizes: product.sizes.length,
+      colors: product.colors.length,
+    })
 
-    try {
-      const product = await Product.findById(new ObjectId(productId))
-        .populate('brand')
-        .populate('category')
-        .populate('categoryHierarchy.mainCategory')
-        .populate('categoryHierarchy.subCategory')
-        .populate('categoryHierarchy.leafCategory')
-        .lean()
-
-      if (!product) {
-        return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 })
-      }
-
-      // Convert _id to string to prevent serialization issues
-      const formattedProduct = {
-        ...product,
-        _id: product._id.toString(),
-        // Safely format brand data if it exists
-        brand: product.brand
-          ? {
-              ...product.brand,
-              _id: product.brand._id?.toString(),
-            }
-          : null,
-        // Safely format category array if it exists
-        category: Array.isArray(product.category)
-          ? product.category.map(cat =>
-              cat
-                ? {
-                    ...cat,
-                    _id: cat._id?.toString(),
-                  }
-                : null
-            )
-          : [],
-        // Safely format categoryHierarchy if it exists
-        categoryHierarchy: product.categoryHierarchy
-          ? {
-              mainCategory: product.categoryHierarchy.mainCategory
-                ? {
-                    ...product.categoryHierarchy.mainCategory,
-                    _id: product.categoryHierarchy.mainCategory._id?.toString(),
-                  }
-                : null,
-              subCategory: product.categoryHierarchy.subCategory
-                ? {
-                    ...product.categoryHierarchy.subCategory,
-                    _id: product.categoryHierarchy.subCategory._id?.toString(),
-                  }
-                : null,
-              leafCategory: product.categoryHierarchy.leafCategory
-                ? {
-                    ...product.categoryHierarchy.leafCategory,
-                    _id: product.categoryHierarchy.leafCategory._id?.toString(),
-                  }
-                : null,
-            }
-          : null,
-      }
-
-      return NextResponse.json({
-        success: true,
-        data: formattedProduct,
-      })
-    } catch (dbError) {
-      console.error('Database error:', dbError)
-      return NextResponse.json(
-        { success: false, message: 'Database error occurred' },
-        { status: 500 }
-      )
-    }
+    return NextResponse.json({
+      success: true,
+      data: result,
+    })
   } catch (error) {
     console.error('Error fetching product:', error)
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || 'Failed to fetch product details',
+      },
+      { status: 500 }
+    )
   }
 }
 

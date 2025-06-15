@@ -111,7 +111,7 @@ export { default as SidebarSkeleton } from './skeleton/SidebarSkeleton'
 export { default as OrderSkeleton } from './skeleton/OrderSkeleton'
 export { default as ProductSkeleton } from './skeleton/ProductSkeleton'
 export { default as SubCategoriesSkeleton } from './skeleton/SubCategoriesSkeleton'
-export { default as TableSkeleton } from './skeleton/TableSkeleton'
+export { default as TableSkeleton } from './skeleton/TableSkeleton.jsx'
 
 //* ─── FORMS ───────────────────────────────────────────
 export { default as LoginForm } from './forms/LoginForm'
@@ -121,7 +121,7 @@ export { default as SliderForm } from './forms/SliderForm'
 
 //* ─── EMPTY LIST COMPONENTS ───────────────────────────
 export { default as EmptyCommentsList } from './emptyList/EmptyCommentsList'
-export { default as EmptyOrdersList } from './emptyList/EmptyOrdersList'
+export { default as EmptyOrdersList } from './emptyList/EmptyOrdersList.jsx'
 export { default as EmptyUsersList } from './emptyList/EmptyUsersList'
 export { default as EmptyComment } from './emptyList/EmptyComment'
 export { default as EmptySearchList } from './emptyList/EmptySearchList'

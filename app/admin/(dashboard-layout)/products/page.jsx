@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -19,6 +20,7 @@ import {
 import Link from 'next/link'
 import Image from 'next/image'
 import { toast } from 'react-hot-toast'
+import { useSearchParams } from 'next/navigation'
 
 import {
   useDeleteProductMutation,
@@ -26,24 +28,26 @@ import {
   useGetProductsQuery,
 } from '@/store/services'
 
-import HandleResponse from '@/components/common/HandleResponse'
+// Import static components
 import PageContainer from '@/components/common/PageContainer'
-import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal'
-import ProductImage from '@/components/common/ProductImage'
+import { useDisclosure } from 'hooks'
+import { useTitle } from '@/hooks'
 
-import ProductsTable from '@/components/admin/ProductsTable.jsx'
-import { useDisclosure, useChangeRoute } from 'hooks'
-import { useTitle, useUrlQuery } from '@/hooks'
-import DashboardLayout from '@/components/Layouts/DashboardLayout'
+// Dynamically import client components
+const HandleResponse = dynamic(() => import('@/components/common/HandleResponse'))
+const ConfirmDeleteModal = dynamic(() => import('@/components/modals/ConfirmDeleteModal'))
+const ProductImage = dynamic(() => import('@/components/common/ProductImage'))
+const ProductsTable = dynamic(() => import('@/components/admin/ProductsTable.jsx'))
+const DashboardLayout = dynamic(() => import('@/components/Layouts/DashboardLayout'))
 
 const ProductsContent = () => {
   useTitle('Products Management')
 
   const { push } = useRouter()
-  const query = useUrlQuery()
-  const page = query.page ? +query.page : 1
-  const category = query.category ?? ''
-  const search = query.search ?? ''
+  const searchParams = useSearchParams()
+  const page = searchParams?.get('page') ? +searchParams.get('page') : 1
+  const category = searchParams?.get('category') ?? ''
+  const search = searchParams?.get('search') ?? ''
 
   const changeRoute = useChangeRoute()
 
@@ -814,11 +818,9 @@ const ProductsContent = () => {
 
 const ProductsPage = () => {
   return (
-    <DashboardLayout>
-      <Suspense fallback={<div>Loading...</div>}>
-        <ProductsContent />
-      </Suspense>
-    </DashboardLayout>
+    <Suspense fallback={<div>Loading...</div>}>
+      <ProductsContent />
+    </Suspense>
   )
 }
 

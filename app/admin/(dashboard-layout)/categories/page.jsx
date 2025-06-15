@@ -1,18 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import PageContainer from '@/components/common/PageContainer'
-import { useTitle, useUrlQuery } from '@/hooks'
+import dynamic from 'next/dynamic'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { FiPlus, FiEdit2, FiList, FiChevronRight } from 'react-icons/fi'
+import { useTitle } from '@/hooks'
 
-export default function Page() {
+// Import static components
+import PageContainer from '@/components/common/PageContainer'
+
+// Client Components Wrapper
+const ClientSideContent = ({ searchParams }) => {
   useTitle('Classification management')
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const parentId = searchParams.get('parent_id') || null
-  const parentLvl = searchParams.get('parent_lvl') ? parseInt(searchParams.get('parent_lvl')) : 0
+  const parentId = searchParams?.parent_id || null
+  const parentLvl = searchParams?.parent_lvl ? parseInt(searchParams.parent_lvl) : 0
 
   const [categoryPath, setCategoryPath] = useState([])
   const [categories, setCategories] = useState([])
@@ -249,36 +252,25 @@ export default function Page() {
                                 : 'bg-gray-100 text-gray-800'
                             }`}
                           >
-                            {category?.featured ? 'Featured' : 'Regular'}
+                            {category?.featured ? 'Featured' : 'Not Featured'}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-center gap-2">
-                            {(category?.level || 0) < 2 && (
-                              <Link
-                                href={`/admin/categories?parent_id=${category?._id}&parent_lvl=${category?.level || 0}`}
-                                className="px-3 py-1 bg-green-100 text-green-600 rounded hover:bg-green-200"
-                              >
-                                View {(category?.level || 0) === 0 ? 'Subcategories' : 'Types'}
-                              </Link>
-                            )}
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex justify-center space-x-2">
                             <Link
-                              href={`/admin/categories/edit/${category?._id}`}
-                              className="flex items-center px-3 py-1 bg-yellow-100 text-yellow-600 rounded hover:bg-yellow-200"
+                              href={`/admin/categories/${category._id}/edit`}
+                              className="p-2 text-blue-600 hover:text-blue-800"
                             >
-                              <FiEdit2 className="mr-1" /> Edit
+                              <FiEdit2 size={16} />
                             </Link>
-                            {(category?.level || 0) < 2 && (
-                              <Link
-                                href={`/admin/categories/create?level=${
-                                  (category?.level || 0) + 1
-                                }&parent_id=${category?._id}`}
-                                className="flex items-center px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
-                              >
-                                <FiPlus className="mr-1" /> Add{' '}
-                                {(category?.level || 0) === 0 ? 'Subcategory' : 'Type'}
-                              </Link>
-                            )}
+                            <button
+                              onClick={() =>
+                                handleCategoryClick(category._id, (category.level || 0) + 1)
+                              }
+                              className="p-2 text-green-600 hover:text-green-800"
+                            >
+                              <FiList size={16} />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -286,8 +278,7 @@ export default function Page() {
                   ) : (
                     <tr>
                       <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                        No categories found. Click "Add{' '}
-                        {getLevelName(parentLvl ? parentLvl + 1 : 0)}" to create one.
+                        No categories found
                       </td>
                     </tr>
                   )}
@@ -298,5 +289,22 @@ export default function Page() {
         </div>
       </section>
     </PageContainer>
+  )
+}
+
+// Server Component
+export default function Page({ searchParams }) {
+  return (
+    <Suspense
+      fallback={
+        <PageContainer title="Classification management">
+          <div className="px-3 py-20 text-center">
+            <div className="text-gray-500">Loading...</div>
+          </div>
+        </PageContainer>
+      }
+    >
+      <ClientSideContent searchParams={searchParams} />
+    </Suspense>
   )
 }

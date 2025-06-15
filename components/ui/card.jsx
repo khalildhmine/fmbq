@@ -1,25 +1,54 @@
-const Card = ({ className = '', ...props }) => (
-  <div
-    className={`rounded-xl border bg-card text-card-foreground shadow ${className}`}
-    {...props}
-  />
-)
+import React from 'react'
 
-const CardHeader = ({ className = '', ...props }) => (
-  <div className={`flex flex-col space-y-1.5 p-6 ${className}`} {...props} />
-)
+export const Card = ({ children, className = '', ...props }) => {
+  return (
+    <div
+      className={`bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden ${className}`}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
 
-const CardTitle = ({ className = '', ...props }) => (
-  <h3 className={`font-semibold leading-none tracking-tight ${className}`} {...props} />
-)
+export const CardHeader = ({ children, className = '', ...props }) => {
+  return (
+    <div className={`p-6 border-b border-gray-200 ${className}`} {...props}>
+      {children}
+    </div>
+  )
+}
 
-const CardContent = ({ className = '', ...props }) => (
-  <div className={`p-6 pt-0 ${className}`} {...props} />
-)
+export const CardTitle = ({ children, className = '', ...props }) => {
+  return (
+    <h3 className={`text-lg font-semibold ${className}`} {...props}>
+      {children}
+    </h3>
+  )
+}
 
-Card.displayName = 'Card'
-CardHeader.displayName = 'CardHeader'
-CardTitle.displayName = 'CardTitle'
-CardContent.displayName = 'CardContent'
+export const CardDescription = ({ children, className = '', ...props }) => {
+  return (
+    <p className={`text-sm text-gray-500 ${className}`} {...props}>
+      {children}
+    </p>
+  )
+}
 
-export { Card, CardHeader, CardTitle, CardContent }
+export const CardContent = ({ children, className = '', ...props }) => {
+  return (
+    <div className={`p-6 ${className}`} {...props}>
+      {children}
+    </div>
+  )
+}
+
+export const CardFooter = ({ children, className = '', ...props }) => {
+  return (
+    <div className={`p-6 border-t border-gray-200 ${className}`} {...props}>
+      {children}
+    </div>
+  )
+}
+
+export default Card

@@ -67,6 +67,16 @@ const userSchema = new mongoose.Schema(
         message: props => `${props.value} is not a valid Expo push token`,
       },
     },
+    notificationSettings: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+      expoPushToken: {
+        type: String,
+        default: null,
+      },
+    },
   },
   {
     timestamps: true,

@@ -1,5 +1,7 @@
-import { connectToDatabase } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { connectToDatabase } from '@/helpers/db'
+import Brand from '@/models/Brand'
+import Product from '@/models/Product'
 
 // Make sure this is set for dynamic data
 export const dynamic = 'force-dynamic'
@@ -8,113 +10,48 @@ export const revalidate = 0
 // Get all brands
 export async function GET(request) {
   try {
-    // Connect to the database
-    const connection = await connectToDatabase()
-    const db = connection.db
+    await connectToDatabase()
 
-    console.log('Fetching brands from database...')
+    // Get all brands first
+    const brands = await Brand.find().lean()
 
-    // Fetch all brands with proper sorting
-    const brands = await db.collection('brands').find({}).sort({ featured: -1, name: 1 }).toArray()
+    // Get products for each brand
+    const brandsWithProducts = await Promise.all(
+      brands.map(async brand => {
+        // Get products for this brand
+        const products = await Product.find({ brand: brand._id })
+          .select('_id title price discount images brand category')
+          .populate('category')
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .lean()
 
-    // Log the results
-    console.log(`Found ${brands.length} brands`)
-
-    // Transform and validate each brand
-    const transformedBrands = brands.map(brand => {
-      // Ensure all required fields have fallback values
-      const transformedBrand = {
-        _id: brand._id.toString(),
-        name: brand.name || 'Unnamed Brand',
-        slug: brand.slug || brand._id.toString(),
-        logo: brand.logo || null,
-        featured: !!brand.featured,
-        active: brand.active !== false,
-        color: brand.color || '#F5F5DC',
-        description: brand.description || '',
-        isInFeed: brand.isInFeed !== false,
-        createdAt: brand.createdAt || new Date(),
-        updatedAt: brand.updatedAt || new Date(),
-      }
-
-      console.log(`Transformed brand: ${transformedBrand.name}`, transformedBrand)
-      return transformedBrand
-    })
-
-    // Return success response
-    return NextResponse.json({
-      success: true,
-      data: transformedBrands,
-      message: `Successfully fetched ${transformedBrands.length} brands`,
-    })
-  } catch (error) {
-    console.error('Error in brands API:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message || 'Failed to fetch brands',
-        error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-      },
-      { status: 500 }
+        return {
+          ...brand,
+          products: products.map(product => ({
+            ...product,
+            brand: {
+              _id: brand._id,
+              name: brand.name,
+              logo: brand.logo,
+              color: brand.color,
+            },
+          })),
+        }
+      })
     )
-  }
-}
 
-// Create brand API endpoint
-export async function POST(req) {
-  try {
-    // Connect to the database
-    const connection = await connectToDatabase()
-    const db = connection.db
+    // Filter out brands with no products
+    const filteredBrands = brandsWithProducts.filter(brand => brand.products?.length > 0)
 
-    // Parse the request body
-    const brandData = await req.json()
-
-    // Validate the request body
-    if (!brandData.name) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Brand name is required',
-        },
-        { status: 400 }
-      )
-    }
-
-    // Generate slug if not provided
-    if (!brandData.slug) {
-      brandData.slug = brandData.name
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '')
-    }
-
-    // Create a new brand
-    const result = await db.collection('brands').insertOne({
-      ...brandData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })
-
-    // Get the created brand
-    const newBrand = await db.collection('brands').findOne({ _id: result.insertedId })
+    console.log(`Found ${filteredBrands.length} brands with products`)
 
     return NextResponse.json({
       success: true,
-      data: {
-        ...newBrand,
-        _id: newBrand._id.toString(),
-      },
-      message: 'Brand created successfully',
+      data: filteredBrands,
     })
   } catch (error) {
-    console.error('Error creating brand:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message || 'Failed to create brand',
-      },
-      { status: 500 }
-    )
+    console.error('Error fetching brands:', error)
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

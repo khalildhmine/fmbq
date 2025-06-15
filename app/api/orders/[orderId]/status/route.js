@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/helpers/db'
+import { validateToken } from '@/helpers/auth'
 import Order from '@/models/Order'
-import { verifyAuth, mockAuth } from '@/lib/auth'
 
 export async function PATCH(request, { params }) {
   try {
@@ -87,6 +87,61 @@ export async function PATCH(request, { params }) {
       { error: 'Failed to update order status', details: error.message },
       { status: 500 }
     )
+  }
+}
+
+export async function PUT(request, { params }) {
+  try {
+    const { orderId } = params
+
+    // Validate admin access
+    const authResult = await validateToken(request)
+    if (!authResult.success || authResult.role !== 'admin') {
+      return Response.json({ success: false, error: 'Admin access required' }, { status: 403 })
+    }
+
+    await connectToDatabase()
+    const { status } = await request.json()
+
+    // Validate status transition
+    const validTransitions = {
+      pending_verification: ['picked_up'],
+      picked_up: ['delivered'],
+    }
+
+    const order = await Order.findById(orderId)
+    if (!order) {
+      return Response.json({ success: false, error: 'Order not found' }, { status: 404 })
+    }
+
+    // Validate status transition
+    if (!validTransitions[order.status]?.includes(status)) {
+      return Response.json(
+        {
+          success: false,
+          error: 'Invalid status transition',
+        },
+        { status: 400 }
+      )
+    }
+
+    // Update order status
+    order.status = status
+    order.tracking.push({
+      status,
+      date: new Date(),
+      description: `Order ${status === 'picked_up' ? 'picked up by delivery' : 'delivered'}`,
+    })
+
+    await order.save()
+
+    return Response.json({
+      success: true,
+      data: order,
+    })
+  } catch (error) {
+    console.error('Status update error:', error)
+    return Response.json({ success: false, error: error.message }, { status: 500 })
   }
 }
 

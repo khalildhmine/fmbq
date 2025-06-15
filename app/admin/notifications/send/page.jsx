@@ -16,56 +16,76 @@ export default function SendNotification() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
-    // Set token in cookie for middleware - no verification needed
-    const storedToken = localStorage.getItem('token')
-    if (storedToken) {
-      document.cookie = `token=${encodeURIComponent(storedToken)}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict`
+    const checkAuth = async () => {
+      try {
+        // Verify the user's authentication status
+        const response = await fetch('/api/auth/user')
+        const data = await response.json()
+
+        if (!response.ok || !data.success || data.data?.role !== 'admin') {
+          router.replace('/login')
+          return
+        }
+
+        setIsAuthenticated(true)
+      } catch (err) {
+        console.error('Auth check failed:', err)
+        router.replace('/login')
+      }
     }
-  }, [])
+
+    checkAuth()
+  }, [router])
 
   const handleSubmit = async e => {
     e.preventDefault()
-    setLoading(true)
     setError(null)
     setSuccess(false)
+    setLoading(true)
 
     try {
-      const token = localStorage.getItem('token')
-
       const response = await fetch('/api/admin/notifications/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${encodeURIComponent(token)}` : '',
         },
         body: JSON.stringify(formData),
-        credentials: 'include',
       })
 
       const data = await response.json()
-      console.log('Notification API response:', data)
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to send notification')
+      if (response.ok) {
+        setSuccess(true)
+        setFormData({
+          title: '',
+          message: '',
+          type: 'all',
+          userIds: [],
+          link: '',
+          scheduledFor: '',
+        })
+      } else {
+        if (response.status === 401) {
+          router.replace('/login')
+          return
+        }
+        throw new Error(data.error || data.message || 'Failed to send notification')
       }
-
-      setSuccess(true)
-      setFormData({
-        title: '',
-        message: '',
-        type: 'all',
-        userIds: [],
-        link: '',
-        scheduledFor: '',
-      })
     } catch (err) {
-      console.error('Error sending notification:', err)
       setError(err.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
   }
 
   return (
