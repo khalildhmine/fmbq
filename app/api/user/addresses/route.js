@@ -5,7 +5,7 @@ import User from '@/models/User'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
-const verifyToken = (token) => {
+const verifyToken = token => {
   try {
     return jwt.verify(token, JWT_SECRET)
   } catch (error) {
@@ -33,12 +33,12 @@ export async function GET(req) {
     const addresses = user?.address
       ? [
           {
-            _id: user.address._id,
+            _id: user._id,
             fullName: user.name,
             phone: user.mobile,
-            province: user.address.province?.name,
-            city: user.address.city?.name,
-            area: user.address.area?.name,
+            province: user.address.province,
+            city: user.address.city,
+            area: user.address.area,
             streetAddress: user.address.street,
             postalCode: user.address.postalCode,
             isDefault: true,
@@ -56,7 +56,7 @@ export async function GET(req) {
   }
 }
 
-export async function PUT(req, { params }) {
+export async function PUT(req) {
   try {
     const token = req.headers.get('authorization')?.split(' ')[1]
     if (!token) {
@@ -73,12 +73,12 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
     }
 
-    // Update user address
+    // Update user address with the correct structure
     user.address = {
-      street: body.streetAddress,
-      province: { name: body.province },
-      city: { name: body.city },
-      area: { name: body.area },
+      street: body.street,
+      province: body.province,
+      city: body.city,
+      area: body.area,
       postalCode: body.postalCode,
     }
 
@@ -88,12 +88,12 @@ export async function PUT(req, { params }) {
       success: true,
       data: [
         {
-          _id: user.address._id,
+          _id: user._id,
           fullName: user.name,
           phone: user.mobile,
-          province: user.address.province?.name,
-          city: user.address.city?.name,
-          area: user.address.area?.name,
+          province: user.address.province,
+          city: user.address.city,
+          area: user.address.area,
           streetAddress: user.address.street,
           postalCode: user.address.postalCode,
           isDefault: true,

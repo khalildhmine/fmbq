@@ -32,6 +32,7 @@ import {
 import PageContainer from '@/components/common/PageContainer'
 import { useDisclosure } from 'hooks'
 import { useTitle } from '@/hooks'
+import useChangeRoute from '@/hooks/useChangeRoute'
 
 // Dynamically import client components
 const HandleResponse = dynamic(() => import('@/components/common/HandleResponse'))

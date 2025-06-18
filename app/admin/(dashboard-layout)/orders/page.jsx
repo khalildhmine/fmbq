@@ -2,25 +2,85 @@
 
 import dynamic from 'next/dynamic'
 import { useState, useEffect, Suspense } from 'react'
-import { useGetOrdersListQuery } from '@/store/services'
 import { motion } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
-
-import { ShowWrapper, PageContainer } from '@/components'
-import { useChangeRoute } from 'hooks'
-import { useTitle } from '@/hooks'
+import { useGetOrdersListQuery } from '@/store/services'
 import { Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
-// Dynamically import components that use client-side features
-const DynamicOrdersTable = dynamic(() => import('@/components/admin/DynamicOrdersTable.jsx'))
-const TableSkeleton = dynamic(() => import('@/components/skeleton/TableSkeleton.jsx'))
-const EmptyOrdersList = dynamic(() => import('@/components/emptyList/EmptyOrdersList.jsx'))
+// Import components directly
+import PageContainer from '@/components/common/PageContainer'
+import { useChangeRoute, useTitle } from '@/hooks'
+
+// Error Boundary Component
+const ErrorBoundary = ({ children }) => {
+  const [hasError, setHasError] = useState(false)
+
+  useEffect(() => {
+    if (hasError) {
+      // Log the error to an error reporting service
+      console.error('Error in Orders Page')
+    }
+  }, [hasError])
+
+  if (hasError) {
+    return (
+      <div className="p-4 text-center">
+        <h2>Something went wrong.</h2>
+        <button onClick={() => window.location.reload()}>Refresh Page</button>
+      </div>
+    )
+  }
+
+  return children
+}
+
+// Dynamically import components with proper error handling
+const DynamicOrdersTable = dynamic(
+  () =>
+    import('./OrdersTable').catch(err => {
+      console.error('Failed to load OrdersTable:', err)
+      return () => <div>Error loading orders table</div>
+    }),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="animate-pulse">
+        <div className="h-10 bg-gray-200 rounded w-full mb-4"></div>
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-20 bg-gray-200 rounded w-full"></div>
+          ))}
+        </div>
+      </div>
+    ),
+  }
+)
+
+const TableSkeleton = dynamic(
+  () =>
+    import('@/components/skeleton/TableSkeleton').catch(err => {
+      console.error('Failed to load TableSkeleton:', err)
+      return () => <div>Loading...</div>
+    }),
+  { ssr: false }
+)
+
+const EmptyOrdersList = dynamic(
+  () =>
+    import('@/components/emptyList/EmptyOrdersList').catch(err => {
+      console.error('Failed to load EmptyOrdersList:', err)
+      return () => <div>No orders found</div>
+    }),
+  { ssr: false }
+)
 
 const OrdersContent = () => {
   useTitle('Orders Management')
   const [ordersData, setOrdersData] = useState([])
   const [retryCount, setRetryCount] = useState(0)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [totalPages, setTotalPages] = useState(1)
 
   //? Assets
   const searchParams = useSearchParams()
@@ -35,16 +95,15 @@ const OrdersContent = () => {
     },
     {
       refetchOnMountOrArgChange: true,
-      refetchOnFocus: true,
+      refetchOnFocus: false,
       refetchOnReconnect: true,
-      pollingInterval: 0,
+      pollingInterval: 0, // Disable polling as we'll use WebSocket
     }
   )
 
   // Process orders data when it arrives
   useEffect(() => {
-    if (isSuccess && data?.data?.orders) {
-      console.log('Raw orders data:', data.data.orders)
+    if (isSuccess && data?.data) {
       const formattedOrders = data.data.orders.map(order => {
         // Extract cart/items information
         const items = order.items || order.cart || []
@@ -66,18 +125,28 @@ const OrdersContent = () => {
           }
         })
 
+        // Calculate total price from items if not available
+        let totalPrice = parseFloat(order.totalPrice || 0)
+        if (totalPrice === 0 && formattedItems.length > 0) {
+          totalPrice = formattedItems.reduce((sum, item) => {
+            const price = parseFloat(item.discountedPrice || item.price || 0)
+            const quantity = parseInt(item.quantity || 1)
+            return sum + price * quantity
+          }, 0)
+        }
+
         return {
           id: order._id,
           orderId: order.orderId || order._id,
           customer: order.user?.name || order.user?.email || 'Anonymous',
           date: order.createdAt
-            ? new Date(order.createdAt).toLocaleDateString('en-US', {
+            ? new Date(order.createdAt).toLocaleDateString('fr-FR', {
                 year: 'numeric',
-                month: 'short',
-                day: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
               })
             : 'Invalid Date',
-          amount: `${order.totalPrice || 0} MRU`,
+          amount: totalPrice, // Pass raw number to DynamicOrdersTable
           status: order.status || 'processing',
           items: formattedItems,
           totalItems: order.totalItems || formattedItems.length || 0,
@@ -96,37 +165,64 @@ const OrdersContent = () => {
         }
       })
 
-      console.log('Formatted orders:', formattedOrders)
-      setOrdersData(formattedOrders)
-    }
-  }, [isSuccess, data])
+      setOrdersData(prevOrders => {
+        if (isInitialLoad || JSON.stringify(prevOrders) !== JSON.stringify(formattedOrders)) {
+          return formattedOrders
+        }
+        return prevOrders
+      })
 
-  // Handle notification when a new order is received
-  const handleNewOrder = count => {
-    toast.success(`${count} new order${count > 1 ? 's' : ''} received!`)
+      // Set total pages from pagination data
+      if (data.data.pagination) {
+        setTotalPages(data.data.pagination.totalPages || 1)
+      }
+
+      if (isInitialLoad) {
+        setIsInitialLoad(false)
+      }
+    }
+  }, [isSuccess, data, isInitialLoad])
+
+  // Handle page change
+  const handlePageChange = newPage => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      changeRoute({ page: newPage })
+    }
   }
 
-  // Fallback fetch if needed
+  // WebSocket connection for real-time updates
   useEffect(() => {
-    const fetchOrdersDirectly = async () => {
-      if (isError && retryCount < 3) {
-        try {
-          const response = await fetch(`/api/orders?page=${page}&page_size=10&admin=true`)
-          if (response.ok) {
-            const result = await response.json()
-            if (result.success && result.data?.orders) {
-              setOrdersData(result.data.orders)
-            }
-          }
-        } catch (err) {
-          console.error('Error in fallback fetch:', err)
-          setRetryCount(prev => prev + 1)
+    const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3000/api/ws')
+
+    ws.onopen = () => {
+      console.log('WebSocket connected')
+    }
+
+    ws.onmessage = event => {
+      const data = JSON.parse(event.data)
+      if (data.type === 'NEW_ORDER' || data.type === 'ORDER_UPDATE') {
+        refetch() // Refetch orders when we get a WebSocket update
+        if (data.type === 'NEW_ORDER') {
+          toast.success('New order received!')
         }
       }
     }
 
-    fetchOrdersDirectly()
-  }, [isError, retryCount, page])
+    ws.onerror = error => {
+      console.error('WebSocket error:', error)
+    }
+
+    ws.onclose = () => {
+      console.log('WebSocket disconnected')
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close()
+      }
+    }
+  }, [refetch])
 
   return (
     <motion.div
@@ -163,34 +259,20 @@ const OrdersContent = () => {
       )}
 
       {/* Orders Table */}
-      <Suspense fallback={<div>Loading...</div>}>
-        {isFetching ? (
+      <div className="min-h-[400px]">
+        {isFetching && !ordersData.length ? (
           <TableSkeleton />
         ) : ordersData.length > 0 ? (
-          <DynamicOrdersTable initialOrders={ordersData} onNewOrder={handleNewOrder} />
+          <DynamicOrdersTable
+            key={`orders-table-${page}`}
+            initialOrders={ordersData}
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
         ) : (
           <EmptyOrdersList />
         )}
-      </Suspense>
-
-      {/* Pagination */}
-      <div className="mt-6 flex justify-center">
-        <div className="flex gap-2">
-          <button
-            onClick={() => changeRoute({ page: page - 1 })}
-            disabled={page === 1}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-          <button
-            onClick={() => changeRoute({ page: page + 1 })}
-            disabled={!data?.data?.pagination || page === data.data.pagination.totalPages}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
-        </div>
       </div>
     </motion.div>
   )
@@ -198,9 +280,13 @@ const OrdersContent = () => {
 
 const OrdersPage = () => {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <OrdersContent />
-    </Suspense>
+    <ErrorBoundary>
+      <PageContainer>
+        <Suspense fallback={<TableSkeleton />}>
+          <OrdersContent />
+        </Suspense>
+      </PageContainer>
+    </ErrorBoundary>
   )
 }
 

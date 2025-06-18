@@ -7,7 +7,7 @@ import { userRepo } from '@/helpers/db-repo/user-repo'
 const generateUniqueEmail = mobile => {
   const cleanMobile = mobile.replace(/[^0-9]/g, '')
   const uuid = uuidv4().substring(0, 8)
-  return `mobile_${cleanMobile}_${uuid}@mobileshop.com`
+  return `mobile_${cleanMobile}_${uuid}@fmbq.com`
 }
 
 export async function POST(request) {

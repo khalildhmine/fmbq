@@ -5,7 +5,6 @@ const sizeSchema = new mongoose.Schema({
   size: {
     type: String,
     required: true,
-    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'ONE SIZE', null],
   },
   stock: {
     type: Number,
@@ -104,6 +103,16 @@ const productSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
+    sold: {
+      type: Number,
+      default: 0,
+      min: 0,
+      index: true, // Add index for better query performance
+    },
+    totalRevenue: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
@@ -123,5 +132,23 @@ productSchema.pre('save', function (next) {
   }
   next()
 })
+
+// Add method to update sales
+productSchema.methods.updateSales = async function (quantity, price) {
+  this.sold += quantity
+  this.totalRevenue += quantity * price
+  await this.save()
+
+  // Update brand stats if product has a brand
+  if (this.brand) {
+    const Brand = mongoose.model('Brand')
+    await Brand.findByIdAndUpdate(this.brand, {
+      $inc: {
+        totalSales: quantity,
+        revenue: quantity * price,
+      },
+    })
+  }
+}
 
 export default mongoose.models.product || mongoose.model('product', productSchema)

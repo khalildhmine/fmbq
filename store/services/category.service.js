@@ -3,45 +3,38 @@ import apiSlice from './api'
 export const categoryApiSlice = apiSlice.injectEndpoints({
   endpoints: builder => ({
     getCategories: builder.query({
-      query: ({ level, parent, featured, active = true, limit, sort } = {}) => {
-        // Build query params
-        const params = new URLSearchParams()
-        if (level !== undefined) params.append('level', level)
-        if (parent !== undefined) params.append('parent', parent)
-        if (featured !== undefined) params.append('featured', featured)
-        if (active === false) params.append('includeInactive', 'true')
-        if (limit !== undefined) params.append('limit', limit)
-        if (sort !== undefined) params.append('sort', sort)
-
-        return {
-          url: `/api/categories?${params.toString()}`,
-          method: 'GET',
-        }
-      },
+      query: () => ({
+        url: '/api/categories',
+        method: 'GET',
+      }),
       transformResponse: response => {
-        if (!response?.success) {
+        if (!response?.success || !response?.data) {
           console.error('Invalid category API response:', response)
-          return { data: { categories: [] } }
+          return []
         }
-
-        // Handle both array and object responses
-        const categories = response.data?.categories || response.data || []
 
         // Ensure we're working with an array
-        if (!Array.isArray(categories)) {
-          console.error('Categories data is not an array:', categories)
-          return { data: { categories: [] } }
-        }
+        const categories = Array.isArray(response.data) ? response.data : []
 
-        // Filter out inactive categories if they somehow got through
-        const filteredCategories = categories.filter(cat => cat.active !== false)
-        return { data: { categories: filteredCategories } }
+        // Filter out inactive categories and normalize data
+        const normalizedCategories = categories
+          .filter(cat => cat.active !== false)
+          .map(cat => ({
+            ...cat,
+            level: cat.level !== undefined ? Number(cat.level) : 0,
+            parent: cat.parent || null,
+            _id: cat._id.toString(),
+          }))
+
+        return normalizedCategories
       },
-      providesTags: result => [
-        { type: 'Category', id: 'LIST' },
-        ...(result?.data?.categories?.map(category => ({ type: 'Category', id: category._id })) ||
-          []),
-      ],
+      providesTags: result =>
+        result
+          ? [
+              ...result.map(category => ({ type: 'Category', id: category._id })),
+              { type: 'Category', id: 'LIST' },
+            ]
+          : [{ type: 'Category', id: 'LIST' }],
     }),
 
     getCategoryById: builder.query({

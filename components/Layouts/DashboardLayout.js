@@ -90,7 +90,7 @@ export default function DashboardLayout({ children }) {
               </button>
 
               <Link href="/admin" className="flex-shrink-0 flex items-center">
-                <span className="text-xl font-bold text-red-500">F & B</span>
+                <span className="text-xl font-bold text-red-500">FORMEN & BQ</span>
               </Link>
             </div>
 

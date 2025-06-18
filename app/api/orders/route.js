@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/helpers/db'
 import Order from '@/models/Order'
+import User from '@/models/User'
 import { verifyAuth } from '@/lib/auth'
 
 export async function GET(request) {
@@ -67,10 +68,16 @@ export async function GET(request) {
 
     console.log('Found orders:', orders.length)
 
+    // Transform orders to ensure proper amount formatting
+    const transformedOrders = orders.map(order => ({
+      ...order,
+      totalPrice: parseFloat(order.totalPrice || 0),
+    }))
+
     return NextResponse.json({
       success: true,
       data: {
-        orders,
+        orders: transformedOrders,
         pagination: {
           page,
           pageSize,

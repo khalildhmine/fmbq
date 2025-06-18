@@ -7,6 +7,30 @@ import { useRouter } from 'next/navigation'
 import { Upload, Trash2, Loader, Plus, Grid, Settings } from 'lucide-react'
 import PageContainer from '@/components/common/PageContainer'
 
+const LoadingSpinner = () => (
+  <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+    <div className="relative">
+      <div className="w-12 h-12 border-4 border-gray-200 rounded-full animate-spin"></div>
+      <div className="w-12 h-12 border-4 border-black rounded-full animate-spin absolute top-0 left-0 border-t-transparent"></div>
+    </div>
+    <p className="text-gray-600">Loading brands...</p>
+  </div>
+)
+
+const ErrorDisplay = ({ message }) => (
+  <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+    <div className="p-4 bg-red-50 rounded-lg">
+      <p className="text-red-600 text-center">{message}</p>
+    </div>
+    <button
+      onClick={() => window.location.reload()}
+      className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800"
+    >
+      Try Again
+    </button>
+  </div>
+)
+
 const BrandManager = () => {
   const [newBrandName, setNewBrandName] = useState('')
   const [newBrandSlug, setNewBrandSlug] = useState('')
@@ -16,7 +40,18 @@ const BrandManager = () => {
   const [uploading, setUploading] = useState(false)
   const [imagePreview, setImagePreview] = useState(null)
 
-  const { data: brandsList = [], isLoading, isError, error } = useGetBrandsQuery()
+  const {
+    data: brandsList = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useGetBrandsQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  })
+
   const [createBrand] = useCreateBrandMutation()
 
   // Generate slug from name
@@ -43,14 +78,12 @@ const BrandManager = () => {
 
     try {
       await createBrand({
-        body: {
-          name: newBrandName,
-          slug: newBrandSlug,
-          logo: newBrandLogo,
-          color: newBrandColor,
-          featured: false,
-          active: true,
-        },
+        name: newBrandName,
+        slug: newBrandSlug,
+        logo: newBrandLogo,
+        color: newBrandColor,
+        featured: false,
+        active: true,
       }).unwrap()
 
       toast.success('Brand added successfully!')
@@ -59,9 +92,10 @@ const BrandManager = () => {
       setNewBrandLogo('')
       setNewBrandColor('#F5F5DC')
       setImagePreview(null)
-    } catch (error) {
-      console.error('Error adding brand:', error)
-      toast.error(error.message || 'Failed to add brand')
+      refetch() // Refresh the brands list
+    } catch (err) {
+      console.error('Error adding brand:', err)
+      toast.error(err?.data?.message || 'Failed to add brand')
     } finally {
       setIsSubmitting(false)
     }
@@ -91,15 +125,17 @@ const BrandManager = () => {
         body: formData,
       })
 
-      if (!res.ok) throw new Error('Upload failed')
+      if (!res.ok) {
+        throw new Error(await res.text())
+      }
 
       const data = await res.json()
       setNewBrandLogo(data.url)
       setImagePreview(data.url)
       toast.success('Logo uploaded successfully')
-    } catch (error) {
-      console.error('Upload error:', error)
-      toast.error('Failed to upload logo')
+    } catch (err) {
+      console.error('Upload error:', err)
+      toast.error(err.message || 'Failed to upload logo')
     } finally {
       setUploading(false)
     }
@@ -111,6 +147,7 @@ const BrandManager = () => {
   }
 
   const getTextColor = hexColor => {
+    if (!hexColor || hexColor.length < 7) return '#000000'
     const r = parseInt(hexColor.slice(1, 3), 16)
     const g = parseInt(hexColor.slice(3, 5), 16)
     const b = parseInt(hexColor.slice(5, 7), 16)
@@ -119,27 +156,6 @@ const BrandManager = () => {
   }
 
   const router = useRouter()
-
-  if (isLoading) {
-    return (
-      <PageContainer title="Brand Management">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader className="w-8 h-8 animate-spin" />
-          <span className="ml-2">Loading brands...</span>
-        </div>
-      </PageContainer>
-    )
-  }
-
-  if (isError) {
-    return (
-      <PageContainer title="Brand Management">
-        <div className="flex items-center justify-center min-h-[400px] text-red-500">
-          <p>Error loading brands: {error?.message || 'Unknown error'}</p>
-        </div>
-      </PageContainer>
-    )
-  }
 
   return (
     <PageContainer title="Brand Management">
@@ -164,7 +180,7 @@ const BrandManager = () => {
                     type="text"
                     value={newBrandName}
                     onChange={e => setNewBrandName(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
                     placeholder="Enter brand name"
                     required
                   />
@@ -176,7 +192,7 @@ const BrandManager = () => {
                     type="color"
                     value={newBrandColor}
                     onChange={e => setNewBrandColor(e.target.value)}
-                    className="w-full h-10"
+                    className="w-full h-10 rounded-md cursor-pointer"
                   />
                 </div>
 
@@ -188,33 +204,54 @@ const BrandManager = () => {
                         <img
                           src={imagePreview}
                           alt="Brand logo preview"
-                          className="w-32 h-32 object-contain border rounded-lg"
+                          className="w-32 h-32 object-contain border rounded-lg bg-white"
                         />
                         <button
                           type="button"
                           onClick={removeImage}
-                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
                     )}
-                    <input
-                      type="file"
-                      onChange={handleImageUpload}
-                      className="w-full"
-                      accept="image/*"
-                      disabled={uploading}
-                    />
+                    <div className="relative">
+                      <input
+                        type="file"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        accept="image/*"
+                        disabled={uploading}
+                        id="logo-upload"
+                      />
+                      <label
+                        htmlFor="logo-upload"
+                        className="flex items-center justify-center w-full px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition-colors"
+                      >
+                        {uploading ? (
+                          <Loader className="w-5 h-5 animate-spin mr-2" />
+                        ) : (
+                          <Upload className="w-5 h-5 mr-2" />
+                        )}
+                        {uploading ? 'Uploading...' : 'Upload Logo'}
+                      </label>
+                    </div>
                   </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting || uploading || !newBrandLogo}
-                  className="w-full py-2 px-4 bg-black text-white rounded-md disabled:opacity-50"
+                  className="w-full py-2 px-4 bg-black text-white rounded-md disabled:opacity-50 hover:bg-gray-800 transition-colors"
                 >
-                  {isSubmitting ? 'Creating...' : 'Create Brand'}
+                  {isSubmitting ? (
+                    <div className="flex items-center justify-center">
+                      <Loader className="w-5 h-5 animate-spin mr-2" />
+                      <span>Creating...</span>
+                    </div>
+                  ) : (
+                    'Create Brand'
+                  )}
                 </button>
               </form>
             </div>
@@ -225,14 +262,21 @@ const BrandManager = () => {
               <h3 className="text-lg font-semibold">Existing Brands</h3>
             </div>
             <div className="p-6">
-              {brandsList.length === 0 ? (
-                <p>No brands found</p>
+              {isLoading ? (
+                <LoadingSpinner />
+              ) : isError ? (
+                <ErrorDisplay message={error?.data?.message || 'Failed to load brands'} />
+              ) : brandsList.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Grid className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No brands found</p>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {brandsList.map(brand => (
                     <div
                       key={brand._id}
-                      className="p-4 border rounded-lg"
+                      className="p-4 border rounded-lg transition-transform hover:scale-[1.02]"
                       style={{
                         backgroundColor: brand.color || '#F5F5DC',
                         color: getTextColor(brand.color || '#F5F5DC'),
@@ -254,9 +298,9 @@ const BrandManager = () => {
                         </div>
                         <button
                           onClick={() => router.push(`/admin/brand-manager/edit/${brand._id}`)}
-                          className="px-3 py-1 bg-white text-gray-700 rounded-md shadow-sm"
+                          className="p-2 hover:bg-black/10 rounded-full transition-colors"
                         >
-                          Edit
+                          <Settings size={20} />
                         </button>
                       </div>
                     </div>

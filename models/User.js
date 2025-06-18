@@ -36,7 +36,16 @@ const userSchema = new mongoose.Schema(
       default: '',
     },
     address: {
-      type: mongoose.Schema.Types.Mixed,
+      type: new mongoose.Schema(
+        {
+          street: { type: String, trim: true },
+          province: { type: String, trim: true },
+          city: { type: String, trim: true },
+          area: { type: String, trim: true },
+          postalCode: { type: String, trim: true },
+        },
+        { _id: false }
+      ),
       default: null,
     },
     isVerified: {

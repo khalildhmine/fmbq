@@ -1,161 +1,104 @@
-import { api } from '../api'
+import apiSlice from './api'
 
-export const brandApi = api.injectEndpoints({
+export const brandApi = apiSlice.injectEndpoints({
   endpoints: builder => ({
     getBrands: builder.query({
-      query: () => ({
-        url: '/api/brands',
-        method: 'GET',
-      }),
+      query: () => '/api/brands',
       keepUnusedDataFor: 300, // Keep unused data in cache for 5 minutes
       transformResponse: response => {
-        console.log('Raw API response:', JSON.stringify(response, null, 2))
-
-        if (!response || typeof response !== 'object') {
-          console.error('Invalid response format:', response)
-          throw new Error('Invalid response format')
+        if (!response?.success || !response?.data) {
+          console.error('Invalid brands response:', response)
+          return []
         }
 
-        if (!response.success) {
-          console.error('API error:', response.message)
-          throw new Error(response?.message || 'Failed to fetch brands')
-        }
+        // Ensure we're working with an array
+        const brands = Array.isArray(response.data) ? response.data : []
 
-        if (!Array.isArray(response.data)) {
-          console.error('Invalid data format:', response.data)
-          throw new Error('Invalid data format - expected an array')
-        }
-
-        // Return the data array directly
-        return response.data
+        // Filter out inactive brands and transform the data
+        return brands
+          .filter(brand => brand.active !== false)
+          .map(brand => ({
+            id: brand._id,
+            _id: brand._id,
+            name: brand.name,
+            logo: brand.logo,
+            featured: brand.featured,
+            color: brand.color,
+            description: brand.description,
+            slug: brand.slug,
+          }))
       },
-      transformErrorResponse: (response, meta, arg) => {
-        console.error('API error response:', response)
-        return {
-          status: response.status,
-          message: response?.data?.message || 'Failed to fetch brands',
-        }
-      },
-      providesTags: result => {
-        if (!result) return [{ type: 'Brands', id: 'LIST' }]
-        return [
-          ...result.map(brand => ({ type: 'Brands', id: brand._id })),
-          { type: 'Brands', id: 'LIST' },
-        ]
-      },
+      providesTags: result =>
+        result
+          ? [
+              ...result.map(brand => ({ type: 'Brand', id: brand._id })),
+              { type: 'Brand', id: 'LIST' },
+            ]
+          : [{ type: 'Brand', id: 'LIST' }],
     }),
+
     getBrand: builder.query({
-      query: id => ({
-        url: `/api/brands/${id}`,
-        method: 'GET',
-      }),
-      keepUnusedDataFor: 300, // Keep unused data in cache for 5 minutes
+      query: id => `/api/brands/${id}`,
+      keepUnusedDataFor: 300,
       transformResponse: response => {
-        console.log('Raw brand API response:', JSON.stringify(response, null, 2))
-
-        if (!response || typeof response !== 'object') {
-          throw new Error('Invalid response format')
-        }
-
-        if (!response.success || !response.data) {
+        if (!response?.success || !response?.data) {
           throw new Error(response?.message || 'Failed to fetch brand')
         }
-
         return response.data
       },
-      transformErrorResponse: (response, meta, arg) => {
-        return {
-          status: response.status,
-          message: response?.data?.message || 'Failed to fetch brand',
-        }
-      },
-      providesTags: (_result, _error, id) => [{ type: 'Brands', id }],
+      providesTags: (_result, _error, id) => [{ type: 'Brand', id }],
     }),
+
     createBrand: builder.mutation({
-      query: ({ body }) => ({
+      query: data => ({
         url: '/api/brands',
         method: 'POST',
-        body,
+        body: data,
       }),
       transformResponse: response => {
-        console.log('Create brand response:', JSON.stringify(response, null, 2))
-
-        if (!response || typeof response !== 'object') {
-          throw new Error('Invalid response format')
-        }
-
-        if (!response.success) {
+        if (!response?.success) {
           throw new Error(response?.message || 'Failed to create brand')
         }
-
         return response.data
       },
-      transformErrorResponse: (response, meta, arg) => {
-        console.error('Create brand error:', response)
-        return {
-          status: response.status,
-          message: response?.data?.message || 'Failed to create brand',
-        }
-      },
-      invalidatesTags: [{ type: 'Brands', id: 'LIST' }],
+      invalidatesTags: [{ type: 'Brand', id: 'LIST' }],
     }),
+
     updateBrand: builder.mutation({
-      query: ({ id, body }) => ({
+      query: ({ id, ...data }) => ({
         url: `/api/brands/${id}`,
         method: 'PUT',
-        body,
+        body: data,
       }),
       transformResponse: response => {
-        if (!response || typeof response !== 'object') {
-          throw new Error('Invalid response format')
-        }
-
-        if (!response.success) {
+        if (!response?.success) {
           throw new Error(response?.message || 'Failed to update brand')
         }
-
         return response.data
       },
-      transformErrorResponse: (response, meta, arg) => {
-        return {
-          status: response.status,
-          message: response?.data?.message || 'Failed to update brand',
-        }
-      },
       invalidatesTags: (_result, _error, { id }) => [
-        { type: 'Brands', id },
-        { type: 'Brands', id: 'LIST' },
+        { type: 'Brand', id },
+        { type: 'Brand', id: 'LIST' },
       ],
     }),
+
     deleteBrand: builder.mutation({
       query: id => ({
         url: `/api/brands/${id}`,
         method: 'DELETE',
       }),
       transformResponse: response => {
-        if (!response || typeof response !== 'object') {
-          throw new Error('Invalid response format')
-        }
-
-        if (!response.success) {
+        if (!response?.success) {
           throw new Error(response?.message || 'Failed to delete brand')
         }
-
         return response.data
       },
-      transformErrorResponse: (response, meta, arg) => {
-        return {
-          status: response.status,
-          message: response?.data?.message || 'Failed to delete brand',
-        }
-      },
       invalidatesTags: (_result, _error, id) => [
-        { type: 'Brands', id },
-        { type: 'Brands', id: 'LIST' },
+        { type: 'Brand', id },
+        { type: 'Brand', id: 'LIST' },
       ],
     }),
   }),
-  overrideExisting: false,
 })
 
 export const {

@@ -41,6 +41,7 @@ import {
   Moon,
   Sun,
   Shirt,
+  Video,
 } from 'lucide-react'
 import { Box, IconButton, Tooltip as MuiTooltip, useTheme } from '@mui/material'
 
@@ -83,23 +84,29 @@ const menuItems = [
       { label: 'Add Coupon', icon: TicketPlus, path: '/admin/coupons/create' },
     ],
   },
-  {
-    id: 'analytics',
-    label: 'Analytics',
-    icon: BarChart3,
-    path: '/admin/analytics',
-  },
+  // {
+  //   id: 'analytics',
+  //   label: 'Analytics',
+  //   icon: BarChart3,
+  //   path: '/admin/analytics',
+  // },
   {
     id: 'support',
     label: 'Support',
     icon: HelpCircle,
     path: '/admin/chat',
   },
+  // {
+  //   id: 'settings',
+  //   label: 'Settings',
+  //   icon: Settings,
+  //   path: '/admin/settings',
+  // },
   {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
-    path: '/admin/settings',
+    id: 'videos',
+    label: 'Melhaf Videos',
+    icon: Video,
+    path: '/admin/maison-adrar/videos',
   },
   {
     id: 'melhaf',
@@ -266,7 +273,7 @@ export default function DashboardAside({
         {/* Logo Header */}
         <div className="px-6 py-6">
           <Link href="/admin" className="flex-shrink-0 flex items-center">
-            <span className="text-xl font-bold text-red-500">F & B</span>
+            <span className="text-xl font-bold text-red-500">FORMEN & BQ</span>
           </Link>
         </div>
 

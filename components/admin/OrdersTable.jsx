@@ -4,7 +4,15 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import OrderDetailsModal from '@/components/admin/OrderDetailsModal'
-import { Search, ChevronLeft, ChevronRight, Eye, Edit, ChevronDown } from 'lucide-react'
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Edit,
+  ChevronDown,
+  MoreVertical,
+} from 'lucide-react'
 
 // Updated order statuses with their colors and styles
 const statusConfig = {
@@ -58,6 +66,39 @@ const statusFlow = {
   delivered: ['completed', 'cancelled'],
   completed: [],
   cancelled: [],
+}
+
+// Format price with MRU currency
+const formatPrice = price => {
+  if (!price || isNaN(price)) return '0.00'
+  return new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(parseFloat(price))
+}
+
+// Calculate order total
+const calculateOrderTotal = order => {
+  let total = 0
+
+  // Try to get total from order properties
+  if (order.totalPrice) {
+    total = parseFloat(order.totalPrice)
+  } else if (order.total) {
+    total = parseFloat(order.total)
+  } else if (order.paymentVerification?.transactionDetails?.amount) {
+    total = parseFloat(order.paymentVerification.transactionDetails.amount)
+  } else {
+    // Calculate from items or cart
+    const items = order.items || order.cart || []
+    total = items.reduce((sum, item) => {
+      const price = parseFloat(item.discountedPrice || item.price || 0)
+      const quantity = parseInt(item.quantity || 1)
+      return sum + price * quantity
+    }, 0)
+  }
+
+  return total
 }
 
 export default function OrdersTable({ data = [], loading = false, pageSize = 8, onStatusChange }) {
@@ -267,6 +308,7 @@ export default function OrdersTable({ data = [], loading = false, pageSize = 8, 
               paginatedOrders.map((order, index) => {
                 const mappedStatus = statusMapping[order.status] || 'pending'
                 const statusStyle = statusConfig[mappedStatus] || statusConfig.pending
+                const orderTotal = calculateOrderTotal(order)
 
                 return (
                   <motion.tr
@@ -281,7 +323,7 @@ export default function OrdersTable({ data = [], loading = false, pageSize = 8, 
                     </td>
                     <td className="px-6 py-4 text-gray-900">{order.customer}</td>
                     <td className="px-6 py-4 text-gray-500">{order.date}</td>
-                    <td className="px-6 py-4 font-medium">{order.amount}</td>
+                    <td className="px-6 py-4 font-medium">{formatPrice(orderTotal)} MRU</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <span

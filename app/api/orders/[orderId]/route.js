@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/helpers/db'
 import Order from '@/models/Order'
 import { verifyAuth, mockAuth } from '@/lib/auth'
 import joi from 'joi'
+import { isValidObjectId } from 'mongoose'
 
 // Schema for order creation
 const orderSchema = joi.object({
@@ -51,24 +52,55 @@ const orderSchema = joi.object({
   status: joi.string(),
 })
 
-export async function GET(req) {
+export async function GET(request, context) {
   try {
+    // Properly await the params
+    const params = await context.params
+    const orderId = params.orderId
+
+    // Validate orderId
+    if (!orderId) {
+      return NextResponse.json({ success: false, message: 'Order ID is required' }, { status: 400 })
+    }
+
+    // Validate if orderId is a valid MongoDB ObjectId
+    if (!isValidObjectId(orderId)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid order ID format' },
+        { status: 400 }
+      )
+    }
+
+    // Connect to database
     await connectToDatabase()
 
-    // Get orderId from URL
-    const orderId = req.url.split('/').pop()
-
-    const order = await Order.findById(orderId).populate('user', 'name email').lean()
+    // Find order and populate necessary fields
+    const order = await Order.findById(orderId).populate('user', 'name email phone').lean()
 
     if (!order) {
       return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ success: true, data: order }, { status: 200 })
+    // Format the response
+    const formattedOrder = {
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        image: item.image || '/placeholder.png',
+      })),
+    }
+
+    return NextResponse.json({
+      success: true,
+      order: formattedOrder,
+    })
   } catch (error) {
     console.error('Error fetching order:', error)
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to fetch order' },
+      {
+        success: false,
+        message: error.message || 'Failed to fetch order details',
+      },
       { status: 500 }
     )
   }

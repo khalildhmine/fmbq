@@ -1,33 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { X, Upload, AlertCircle, Move } from 'lucide-react'
 import Image from 'next/image'
-import { useWatch } from 'react-hook-form'
 import UploadImage from '../common/UploadImage'
 
-const ImageList = ({ control, setValue }) => {
-  const [images, setImages] = useState([])
+const ImageList = ({ images = [], onChange }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [selectedImageIndex, setSelectedImageIndex] = useState(null)
 
-  // Get images from form control using useWatch
-  const watchedImages = useWatch({
-    control,
-    name: 'images',
-    defaultValue: [],
-  })
-
-  // Update local state when form images change
-  useEffect(() => {
-    setImages(watchedImages || [])
-  }, [watchedImages])
-
   // Handle image upload
   const handleAddUploadedImageUrl = url => {
     const newImages = [...images, { url }]
-    setValue('images', newImages, { shouldValidate: true })
+    onChange?.(newImages)
   }
 
   // Handle image click for swapping
@@ -43,8 +29,7 @@ const ImageList = ({ control, setValue }) => {
         newImages[selectedImageIndex] = newImages[index]
         newImages[index] = temp
 
-        setValue('images', newImages, { shouldValidate: true })
-        setImages(newImages)
+        onChange?.(newImages)
       }
       // Reset selection
       setSelectedImageIndex(null)
@@ -55,7 +40,7 @@ const ImageList = ({ control, setValue }) => {
   const handleRemoveImage = (index, e) => {
     e.stopPropagation() // Prevent triggering image click
     const newImages = images.filter((_, i) => i !== index)
-    setValue('images', newImages, { shouldValidate: true })
+    onChange?.(newImages)
     if (selectedImageIndex === index) {
       setSelectedImageIndex(null)
     }

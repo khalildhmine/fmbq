@@ -40,6 +40,7 @@ import Image from 'next/image'
 import OrderDetailsModal from './OrderDetailsModal'
 import OrderPrintManager from './OrderPrintManager'
 import { toast } from 'react-hot-toast'
+import formatNumber from '@/utils/formatNumber'
 
 // Helper function to safely stringify values
 function safeDisplay(value) {
@@ -173,62 +174,94 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
     let totalItems = 0
     let orderItems = []
 
+    // First try to get items from the order
     if (order.items && Array.isArray(order.items) && order.items.length > 0) {
-      orderItems = order.items.map(item => {
-        let imageUrl = null
-        if (item.image) {
-          imageUrl = item.image
-        } else if (item.img && item.img.url) {
-          imageUrl = item.img.url
-        } else if (typeof item.productID === 'object' && item.productID?.image) {
-          imageUrl = item.productID.image
-        } else if (
-          typeof item.productID === 'object' &&
-          item.productID?.images &&
-          Array.isArray(item.productID.images) &&
-          item.productID.images.length > 0
-        ) {
-          imageUrl = item.productID.images[0].url || item.productID.images[0]
-        }
-
-        return {
-          ...item,
-          image: imageUrl || '/placeholder.svg',
-        }
-      })
+      orderItems = order.items
+    } else if (order.cart && Array.isArray(order.cart) && order.cart.length > 0) {
+      orderItems = order.cart
     }
 
-    let amount = 'N/A'
-    if (order.totalPrice) {
-      amount = `${order.totalPrice} MRU`
-    } else if (order.total) {
-      amount = `${order.total} MRU`
-    } else if (order.paymentVerification?.transactionDetails?.amount) {
-      amount = `${order.paymentVerification.transactionDetails.amount} MRU`
-    } else if (orderItems.length > 0) {
-      const calculatedTotal = orderItems.reduce(
-        (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
-        0
-      )
-      if (calculatedTotal > 0) {
-        amount = `${calculatedTotal} MRU`
+    // Process items to get images and calculate totals
+    orderItems = orderItems.map(item => {
+      let imageUrl = null
+      if (item.image) {
+        imageUrl = item.image
+      } else if (item.img && item.img.url) {
+        imageUrl = item.img.url
+      } else if (typeof item.productID === 'object' && item.productID?.image) {
+        imageUrl = item.productID.image
+      } else if (
+        typeof item.productID === 'object' &&
+        item.productID?.images &&
+        Array.isArray(item.productID.images) &&
+        item.productID.images.length > 0
+      ) {
+        imageUrl = item.productID.images[0].url || item.productID.images[0]
       }
+
+      // Calculate item total
+      const quantity = parseInt(item.quantity || 1)
+      const price = parseFloat(item.discountedPrice || item.price || 0)
+      totalAmount += price * quantity
+      totalItems += quantity
+
+      return {
+        ...item,
+        image: imageUrl || '/placeholder.svg',
+        quantity: quantity,
+        price: price,
+      }
+    })
+
+    // Calculate total amount properly - try multiple sources
+    let amount = 0
+
+    // First try to get the amount from order totals
+    if (order.totalPrice && !isNaN(parseFloat(order.totalPrice))) {
+      amount = parseFloat(order.totalPrice)
+    } else if (order.total && !isNaN(parseFloat(order.total))) {
+      amount = parseFloat(order.total)
+    } else if (
+      order.paymentVerification?.transactionDetails?.amount &&
+      !isNaN(parseFloat(order.paymentVerification.transactionDetails.amount))
+    ) {
+      amount = parseFloat(order.paymentVerification.transactionDetails.amount)
+    } else if (orderItems.length > 0) {
+      // Calculate from items if no total is available
+      amount = orderItems.reduce((sum, item) => {
+        const itemPrice = parseFloat(item.discountedPrice || item.price || 0)
+        const itemQuantity = parseInt(item.quantity || 1)
+        return sum + itemPrice * itemQuantity
+      }, 0)
     }
+
+    // If we still have no amount, try to calculate from raw cart data
+    if (amount === 0 && order.cart && Array.isArray(order.cart)) {
+      amount = order.cart.reduce((sum, item) => {
+        const itemPrice = parseFloat(item.discountedPrice || item.price || 0)
+        const itemQuantity = parseInt(item.quantity || 1)
+        return sum + itemPrice * itemQuantity
+      }, 0)
+    }
+
+    // Format the date consistently
+    const orderDate = new Date(order.createdAt)
+    const formattedDate = orderDate.toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
 
     return {
       id: order.id || order._id,
       orderId: order.orderId || order.id || order._id,
       customer: order.user?.name || order.user?.email || 'Anonymous',
-      date: new Date(order.createdAt).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      }),
+      date: formattedDate,
       amount: amount,
       status: order.status || 'processing',
       items: orderItems.length > 0 ? orderItems : null,
       cart: orderItems.length > 0 ? null : order.cart,
-      totalItems: order.totalItems || orderItems.length || order.cart?.length || 0,
+      totalItems: order.totalItems || totalItems || order.cart?.length || 0,
       paymentMethod: order.paymentMethod || 'N/A',
       mobile: order.mobile || 'N/A',
       address: order.address || {},
@@ -442,7 +475,7 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
                 <TableCell>Customer</TableCell>
                 <TableCell>Date</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Total</TableCell>
+                <TableCell>Amount</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -461,35 +494,24 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
                         top: 0,
                         bottom: 0,
                         width: '3px',
-                        bgcolor: 'rgb(139, 92, 246)',
+                        backgroundColor: 'rgb(139, 92, 246)',
                       },
                     }),
                   }}
                 >
-                  <TableCell sx={{ fontWeight: 500 }}>
-                    <div className="flex items-center">
-                      {order.isNew && (
-                        <span className="w-2 h-2 bg-violet-500 rounded-full animate-pulse mr-2"></span>
-                      )}
-                      {order.orderId}
-                    </div>
+                  <TableCell component="th" scope="row">
+                    {order.orderId}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 flex-shrink-0 rounded-full bg-slate-800 flex items-center justify-center mr-2">
-                        <User className="w-4 h-4 text-slate-400" />
-                      </div>
-                      <span>{order.customer}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 text-slate-400 mr-1.5" />
-                      {order.date}
-                    </div>
-                  </TableCell>
+                  <TableCell>{order.customer}</TableCell>
+                  <TableCell>{order.date}</TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell>{order.amount}</TableCell>
+                  <TableCell>
+                    {new Intl.NumberFormat('fr-FR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }).format(parseFloat(order.amount) || 0)}{' '}
+                    MRU
+                  </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <Tooltip title="Print">

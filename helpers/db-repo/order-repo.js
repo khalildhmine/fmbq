@@ -46,12 +46,90 @@ class OrderRepository {
         throw new Error('Invalid user ID')
       }
 
-      // Create order with initial timeline entry and ensure mobile is set
+      // Format cart items according to schema
+      const formattedCart = data.cart.map(item => ({
+        productID: item.productID || item._id,
+        baseProductId: new mongoose.Types.ObjectId(item.productID || item._id), // Convert to ObjectId
+        quantity: item.quantity,
+        price: item.finalPrice || item.price,
+        originalPrice: item.originalPrice || item.price,
+        discount: item.discount || 0,
+        name: item.name,
+        image: item.image || '',
+        color: {
+          id: item.color?.id || 'default',
+          name: item.color?.name || 'Default',
+          hashCode: item.color?.hashCode || '#000000',
+        },
+        size: {
+          id: item.size?.id || 'default',
+          size: item.size?.size || 'One Size',
+        },
+        isMelhaf: item.isMelhaf || false,
+        model: item.model || 'product',
+      }))
+
+      // Format items array according to schema
+      const formattedItems = data.items.map(item => ({
+        productId: item.productId || item._id,
+        name: item.name,
+        quantity: item.quantity,
+        originalPrice: item.originalPrice || item.price,
+        discountedPrice: item.discountedPrice || item.finalPrice,
+        color: {
+          id: item.color?.id || 'default',
+          name: item.color?.name || 'Default',
+          hashCode: item.color?.hashCode || '#000000',
+        },
+        size: {
+          id: item.size?.id || 'default',
+          size: item.size?.size || 'One Size',
+        },
+        image: item.image || '',
+      }))
+
+      // Create order with initial timeline entry
       const orderData = {
-        ...data,
-        mobile: data.mobile || '+22200000000', // Ensure mobile is never empty
         user: userId,
-        status: 'pending',
+        mobile: data.mobile || '+22200000000', // Ensure mobile is never empty
+        address: {
+          province: data.address?.province || '',
+          city: data.address?.city || '',
+          area: data.address?.area || '',
+          street: data.address?.street || '',
+          postalCode: data.address?.postalCode || '',
+        },
+        shippingAddress: {
+          street: data.shippingAddress?.street || '',
+          area: data.shippingAddress?.area || '',
+          city: data.shippingAddress?.city || '',
+          province: data.shippingAddress?.province || '',
+          postalCode: data.shippingAddress?.postalCode || '',
+        },
+        cart: formattedCart,
+        items: formattedItems,
+        totalItems: data.totalItems,
+        totalPrice: data.totalPrice,
+        subtotalBeforeDiscounts: data.subtotalBeforeDiscounts,
+        totalDiscount: data.totalDiscount,
+        paymentMethod: data.paymentMethod,
+        status: data.status || 'pending',
+        delivered: data.delivered || false,
+        paid: data.paid || false,
+        paymentVerification: {
+          ...data.paymentVerification,
+          image: data.paymentVerification?.image || '',
+          status: data.paymentVerification?.status || 'pending',
+          verificationStatus: data.paymentVerification?.verificationStatus || 'pending',
+        },
+        tracking: data.tracking || [
+          {
+            status: 'pending',
+            date: new Date(),
+            location: 'Order received',
+            description: 'Order has been created',
+          },
+        ],
         timeline: [
           {
             type: 'status',

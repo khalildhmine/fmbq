@@ -1,6 +1,6 @@
 'use client'
 
-const TextField = ({ label, error, className = '', required, ...props }) => {
+const TextArea = ({ label, error, className = '', required, rows = 4, ...props }) => {
   return (
     <div className={`mb-4 ${className}`}>
       {label && (
@@ -8,7 +8,8 @@ const TextField = ({ label, error, className = '', required, ...props }) => {
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
-      <input
+      <textarea
+        rows={rows}
         className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
           error ? 'border-red-500' : 'border-gray-300'
         }`}
@@ -19,4 +20,4 @@ const TextField = ({ label, error, className = '', required, ...props }) => {
   )
 }
 
-export default TextField
+export default TextArea

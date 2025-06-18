@@ -52,18 +52,9 @@ const orderSchema = Joi.object({
   user: Joi.string().required(),
   mobile: Joi.string().required(),
   address: Joi.object({
-    province: Joi.object({
-      code: Joi.string(),
-      name: Joi.string(),
-    }),
-    city: Joi.object({
-      code: Joi.string(),
-      name: Joi.string(),
-    }),
-    area: Joi.object({
-      code: Joi.string(),
-      name: Joi.string(),
-    }),
+    province: Joi.string().required(),
+    city: Joi.string().required(),
+    area: Joi.string().required(),
     street: Joi.string(),
     postalCode: Joi.string(),
   }).required(),
@@ -83,14 +74,12 @@ const orderSchema = Joi.object({
   totalDiscount: Joi.number(),
   subtotalBeforeDiscounts: Joi.number(),
   subtotalAfterDiscounts: Joi.number(),
+  appliedCoupon: Joi.any().allow(null),
+  shippingCost: Joi.number().default(0),
   paymentVerification: Joi.object({
-    image: Joi.object({
-      url: Joi.string(),
-      publicId: Joi.string(),
-      uploadedAt: Joi.string(),
-    }),
-    status: Joi.string(),
-    verificationStatus: Joi.string(),
+    image: Joi.string().required(),
+    status: Joi.string().default('pending'),
+    verificationStatus: Joi.string().default('pending'),
     transactionDetails: Joi.object({
       amount: Joi.number(),
       originalAmount: Joi.number(),

@@ -26,18 +26,9 @@ const OrderSchema = new mongoose.Schema(
       unique: true,
     },
     address: {
-      province: {
-        code: String,
-        name: String,
-      },
-      city: {
-        code: String,
-        name: String,
-      },
-      area: {
-        code: String,
-        name: String,
-      },
+      province: String,
+      city: String,
+      area: String,
       street: String,
       postalCode: String,
     },
@@ -156,42 +147,20 @@ const OrderSchema = new mongoose.Schema(
       },
     ],
     paymentVerification: {
-      image: {
-        url: String,
-        publicId: String,
-        uploadedAt: Date,
-      },
-      verificationStatus: {
+      status: {
         type: String,
         enum: ['pending', 'verified', 'rejected'],
         default: 'pending',
       },
-      status: {
-        type: String,
-        enum: ['pending_verification', 'verified', 'rejected'],
-        default: 'pending_verification',
-      },
+      image: String,
       verifiedAt: Date,
       verificationNote: String,
-      transactionDetails: {
-        amount: {
-          type: Number,
-          required: false,
-          min: 0,
+      transactionId: String,
+      amount: {
+        type: Number,
+        required: function () {
+          return this.paymentMethod === 'bank_transfer'
         },
-        date: {
-          type: Date,
-          required: false,
-        },
-        verificationStatus: {
-          type: String,
-          enum: ['pending', 'approved', 'rejected'],
-          default: 'pending',
-        },
-      },
-      image: {
-        url: String,
-        uploadedAt: Date,
       },
     },
     brand: {
@@ -205,7 +174,7 @@ const OrderSchema = new mongoose.Schema(
       },
     },
   },
-  { timestamps: true, strict: false }
+  { timestamps: true }
 )
 
 // Add method to validate status transitions
@@ -241,7 +210,26 @@ OrderSchema.methods.updateStatus = async function (newStatus, userId) {
     this.delivered = true
   }
 
+  if (newStatus === 'completed') {
+    await this.updateProductSales()
+  }
+
   return this.save()
+}
+
+OrderSchema.methods.updateProductSales = async function () {
+  if (this.status === 'completed') {
+    try {
+      for (const item of this.cart) {
+        const product = await mongoose.model('Product').findById(item.baseProductId)
+        if (product) {
+          await product.updateSales(item.quantity, item.price)
+        }
+      }
+    } catch (error) {
+      console.error('Error updating product sales:', error)
+    }
+  }
 }
 
 // Generate unique order ID before saving

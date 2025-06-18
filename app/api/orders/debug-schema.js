@@ -81,24 +81,9 @@ export const orderSchema = joi.object({
     .required(),
   address: joi
     .object({
-      province: joi
-        .object({
-          code: joi.string().allow(''),
-          name: joi.string().allow(''),
-        })
-        .allow(null),
-      city: joi
-        .object({
-          code: joi.string().allow(''),
-          name: joi.string().allow(''),
-        })
-        .allow(null),
-      area: joi
-        .object({
-          code: joi.string().allow(''),
-          name: joi.string().allow(''),
-        })
-        .allow(null),
+      province: joi.string().required(),
+      city: joi.string().required(),
+      area: joi.string().required(),
       street: joi.string().allow(''),
       postalCode: joi.string().allow(''),
     })
@@ -109,21 +94,14 @@ export const orderSchema = joi.object({
   subtotalBeforeDiscounts: joi.number().required(),
   subtotalAfterDiscounts: joi.number().required(),
   totalDiscount: joi.number().required(),
+  appliedCoupon: joi.any().allow(null),
+  shippingCost: joi.number().default(0),
   mobile: joi.string().allow(''),
   paymentVerification: joi
     .object({
-      image: joi
-        .object({
-          url: joi.string().required(),
-          publicId: joi.string().required(),
-          uploadedAt: joi.string().required(),
-        })
-        .required(),
-      status: joi
-        .string()
-        .valid('pending_verification', 'verified', 'rejected')
-        .default('pending_verification'),
-      verificationStatus: joi.string().valid('pending', 'verified', 'rejected').default('pending'),
+      image: joi.string().required(),
+      status: joi.string().default('pending'),
+      verificationStatus: joi.string().default('pending'),
       transactionDetails: joi
         .object({
           amount: joi.number().required(),

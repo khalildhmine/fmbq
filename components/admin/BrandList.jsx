@@ -28,7 +28,7 @@ const BrandList = () => {
   }, [brandsData, searchTerm])
 
   const handleEdit = brandId => {
-    router.push(`/admin/brand-manager/edit/${brandId}`)
+    router.push(`/admin/brand-manager/edit?id=${brandId}`)
   }
 
   const handleDelete = async brandId => {

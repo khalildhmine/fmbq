@@ -43,7 +43,11 @@ export async function connectToDatabase() {
   // If we already have a connection, return it
   if (cachedConnection && mongoose.connection.readyState === 1) {
     console.log('Using existing MongoDB connection')
-    return cachedConnection
+    return {
+      db: mongoose.connection.db,
+      connection: mongoose.connection,
+      mongoose: mongoose,
+    }
   }
 
   // Reset cached connection if it's not connected
@@ -64,15 +68,23 @@ export async function connectToDatabase() {
       throw new Error(`Failed to connect to MongoDB after ${MAX_CONNECTION_ATTEMPTS} attempts`)
     }
 
+    // Validate MONGODB_URI
+    if (!MONGODB_URI || !MONGODB_URI.startsWith('mongodb')) {
+      throw new Error('Invalid MONGODB_URI environment variable')
+    }
+
     const opts = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       bufferCommands: false,
-      connectTimeoutMS: 10000, // 10 seconds timeout
-      socketTimeoutMS: 45000, // 45 seconds timeout
-      family: 4, // Use IPv4, skip trying IPv6
-      serverSelectionTimeoutMS: 5000, // 5 seconds timeout for server selection
-      maxPoolSize: 10, // Maximum number of connections in the pool
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      family: 4,
+      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 10,
+      autoIndex: true, // Build indexes
+      retryWrites: true,
+      retryReads: true,
     }
 
     const conn = await mongoose.connect(MONGODB_URI, opts)
@@ -88,6 +100,10 @@ export async function connectToDatabase() {
       connection: conn.connection,
       mongoose: conn,
     }
+
+    // Verify the connection by attempting a simple operation
+    await conn.connection.db.admin().ping()
+    console.log('MongoDB connection verified')
 
     return cachedConnection
   } catch (error) {

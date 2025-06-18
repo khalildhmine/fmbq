@@ -9,7 +9,7 @@ const { v4: uuidv4 } = require('uuid')
 const generateUniqueEmail = mobile => {
   const cleanMobile = mobile ? mobile.replace(/[^0-9]/g, '') : 'unknown'
   const uuid = uuidv4().substring(0, 8)
-  return `mobile_${cleanMobile}_${uuid}@mobileshop.com`
+  return `mobile_${cleanMobile}_${uuid}@fmbq.com`
 }
 
 async function fixDuplicateEmails() {
