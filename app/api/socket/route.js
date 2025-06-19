@@ -1,55 +1,74 @@
 import { NextResponse } from 'next/server'
-import { Server as SocketIOServer } from 'socket.io'
+import { Server } from 'socket.io'
 
 let io
 
-export async function GET(req) {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('Socket.IO initialization requested')
-  }
+if (!global.io) {
+  console.log('Initializing Socket.IO server...')
 
-  // Initialize Socket.IO if not already done
-  if (!io) {
-    console.log('Initializing Socket.IO server...')
+  io = new Server({
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST'],
+      credentials: true,
+    },
+    path: '/api/socket',
+    addTrailingSlash: false,
+    transports: ['websocket', 'polling'],
+    pingTimeout: 30000,
+    pingInterval: 10000,
+  })
 
-    // Create Socket.IO server
-    io = new SocketIOServer({
-      cors: {
-        origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-        methods: ['GET', 'POST'],
-        credentials: true,
-      },
-      path: '/socket.io',
-      addTrailingSlash: false,
-      transports: ['websocket', 'polling'],
-    })
+  io.on('connection', socket => {
+    console.log('Client connected:', socket.id)
 
-    // Basic connection handling
-    io.on('connection', socket => {
-      console.log('Client connected:', socket.id)
+    // Join admin room if user is admin
+    if (socket.handshake.query.role === 'admin') {
+      socket.join('admin-room')
+      console.log('Admin joined admin room:', socket.id)
+    }
 
-      socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id)
+    // Handle order notifications
+    socket.on('newOrder', order => {
+      console.log('New order received:', order.orderId)
+
+      // Broadcast to all clients
+      io.emit('orderNotification', {
+        ...order,
+        timestamp: new Date(),
+        type: 'order',
+      })
+
+      // Also emit to admin room specifically
+      io.to('admin-room').emit('adminOrderNotification', {
+        ...order,
+        timestamp: new Date(),
+        type: 'order',
       })
     })
 
-    // Store io instance globally
-    global.io = io
+    socket.on('disconnect', reason => {
+      console.log('Client disconnected:', socket.id, 'Reason:', reason)
+    })
+
+    socket.on('error', error => {
+      console.error('Socket error:', error)
+    })
+  })
+
+  global.io = io
+}
+
+export async function GET(req) {
+  if (!global.io) {
+    return NextResponse.json({ error: 'Socket.IO server not initialized' }, { status: 500 })
   }
 
   return NextResponse.json({
     status: 'Socket server initialized',
-    path: '/socket.io',
+    path: '/api/socket',
     transports: ['websocket', 'polling'],
   })
-}
-
-// Export the io instance
-export const getIO = () => {
-  if (!io && !global.io) {
-    throw new Error('Socket.IO not initialized')
-  }
-  return io || global.io
 }
 
 export const config = {

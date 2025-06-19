@@ -1,36 +1,17 @@
 import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/helpers/db'
 import Order from '@/models/Order'
+import Product from '@/models/Product'
 import Joi from 'joi'
-import { emitSocketEvent } from '@/utils/socket'
 
 const orderSchema = Joi.object({
-  items: Joi.array().items(
-    Joi.object({
-      productId: Joi.string().required(),
-      name: Joi.string().required(),
-      quantity: Joi.number().required(),
-      originalPrice: Joi.number().required(),
-      discountedPrice: Joi.number().required(),
-      color: Joi.object({
-        id: Joi.string(),
-        name: Joi.string(),
-        hashCode: Joi.string(),
-      }),
-      size: Joi.object({
-        id: Joi.string(),
-        size: Joi.string(),
-      }),
-      image: Joi.string(),
-    })
-  ),
+  user: Joi.string().required(),
   cart: Joi.array()
     .items(
       Joi.object({
         itemID: Joi.string().required(),
         _id: Joi.string().required(),
         productID: Joi.string().required(),
-        baseProductId: Joi.string().required(),
         name: Joi.string().required(),
         price: Joi.number().required(),
         finalPrice: Joi.number().required(),
@@ -49,106 +30,70 @@ const orderSchema = Joi.object({
       })
     )
     .required(),
-  user: Joi.string().required(),
-  mobile: Joi.string().required(),
+  totalItems: Joi.number().required(),
+  totalPrice: Joi.number().required(),
+  subtotalBeforeDiscounts: Joi.number().required(),
+  subtotalAfterDiscounts: Joi.number().required(),
+  totalDiscount: Joi.number().required(),
+  appliedCoupon: Joi.any(),
   address: Joi.object({
+    street: Joi.string(),
     province: Joi.string().required(),
     city: Joi.string().required(),
     area: Joi.string().required(),
-    street: Joi.string(),
     postalCode: Joi.string(),
   }).required(),
   shippingAddress: Joi.object({
     street: Joi.string(),
-    area: Joi.string(),
-    city: Joi.string(),
-    province: Joi.string(),
+    province: Joi.string().required(),
+    city: Joi.string().required(),
+    area: Joi.string().required(),
     postalCode: Joi.string(),
   }).required(),
+  mobile: Joi.string().required(),
   paymentMethod: Joi.string().required(),
-  status: Joi.string(),
-  delivered: Joi.boolean(),
-  paid: Joi.boolean(),
-  totalItems: Joi.number().required(),
-  totalPrice: Joi.number().required(),
-  totalDiscount: Joi.number(),
-  subtotalBeforeDiscounts: Joi.number(),
-  subtotalAfterDiscounts: Joi.number(),
-  appliedCoupon: Joi.any().allow(null),
   shippingCost: Joi.number().default(0),
+  status: Joi.string().default('pending_verification'),
+  delivered: Joi.boolean().default(false),
+  paid: Joi.boolean().default(false),
+  tracking: Joi.array().items(
+    Joi.object({
+      status: Joi.string().required(),
+      date: Joi.date().required(),
+      location: Joi.string().required(),
+      description: Joi.string().required(),
+    })
+  ),
   paymentVerification: Joi.object({
-    image: Joi.string().required(),
+    image: Joi.string(),
     status: Joi.string().default('pending'),
     verificationStatus: Joi.string().default('pending'),
     transactionDetails: Joi.object({
       amount: Joi.number(),
       originalAmount: Joi.number(),
       discount: Joi.number(),
-      date: Joi.string(),
+      date: Joi.date(),
       verificationStatus: Joi.string(),
     }),
   }),
-  tracking: Joi.array().items(
-    Joi.object({
-      status: Joi.string(),
-      description: Joi.string(),
-      location: Joi.string(),
-      date: Joi.string(),
-    })
-  ),
-})
+}).options({ stripUnknown: true })
 
-export async function POST(req, res) {
+export async function POST(req) {
   try {
     await connectToDatabase()
-    const orderData = await req.json()
-    console.log('Received order payload:', orderData)
 
-    // Debug log for size objects
-    console.log('Original size objects:')
-    console.log('Items size:', orderData.items?.[0]?.size)
-    console.log('Cart size:', orderData.cart?.[0]?.size)
+    const value = await req.json()
+    console.log('Received order payload:', value)
 
-    // Pre-process the size objects before validation
-    const processedData = {
-      ...orderData,
-      items: orderData.items?.map(item => ({
-        ...item,
-        size:
-          item.size && typeof item.size === 'object'
-            ? {
-                id: String(item.size.id || 'default'),
-                size: String(item.size.size || item.size.name || 'One Size'),
-              }
-            : { id: 'default', size: 'One Size' },
-      })),
-      cart: orderData.cart?.map(item => ({
-        ...item,
-        baseProductId: item.productID || item._id,
-        size:
-          item.size && typeof item.size === 'object'
-            ? {
-                id: String(item.size.id || 'default'),
-                size: String(item.size.size || item.size.name || 'One Size'),
-              }
-            : { id: 'default', size: 'One Size' },
-      })),
-    }
-
-    // Debug log for processed size objects
-    console.log('Processed size objects:')
-    console.log('Items size:', processedData.items?.[0]?.size)
-    console.log('Cart size:', processedData.cart?.[0]?.size)
-
-    // Validate order data
-    const { error, value } = orderSchema.validate(processedData)
+    // Validate the request body
+    const { error, value: validatedData } = orderSchema.validate(value)
     if (error) {
-      console.error('Order validation failed:', error)
+      console.error('Order validation error:', error.details)
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid order data',
-          error: error.details,
+          message: 'Validation failed',
+          error: error.details.map(detail => detail.message).join(', '),
         },
         { status: 400 }
       )
@@ -161,15 +106,38 @@ export async function POST(req, res) {
       .toString()
       .padStart(4, '0')}`
 
+    // Transform cart items to match the Order model schema
+    const transformedCart = validatedData.cart.map(item => ({
+      productID: item.productID,
+      baseProductId: item._id, // Use _id as baseProductId
+      quantity: item.quantity,
+      price: item.finalPrice,
+      originalPrice: item.price,
+      discount: item.discount || 0,
+      name: item.name,
+      image: item.image,
+      color: item.color || {
+        id: 'default',
+        name: 'Default',
+        hashCode: '#000000',
+      },
+      size: item.size || {
+        id: 'default',
+        size: 'One Size',
+      },
+      model: 'product',
+    }))
+
     const order = new Order({
-      ...value,
+      ...validatedData,
+      cart: transformedCart,
       orderId,
       status: 'pending_verification',
       tracking: [
         {
           status: 'pending_verification',
-          description: 'Your order is awaiting payment verification',
-          location: 'Order received',
+          description: 'Awaiting payment verification',
+          location: 'order.received',
           date: new Date().toISOString(),
         },
       ],
@@ -177,16 +145,54 @@ export async function POST(req, res) {
 
     const savedOrder = await order.save()
 
-    // Emit socket event using global instance
+    // Update product sales
+    try {
+      await Promise.all(
+        transformedCart.map(async item => {
+          const product = await Product.findById(item.baseProductId)
+          if (product) {
+            await product.updateSales(item.quantity, item.price)
+            console.log(`Updated sales for product ${product.title}: +${item.quantity} units`)
+          }
+        })
+      )
+    } catch (salesError) {
+      console.error('Error updating product sales:', salesError)
+      // Don't fail the order creation if sales update fails
+    }
+
+    // Prepare notification data
+    const notificationData = {
+      orderId: savedOrder.orderId,
+      _id: savedOrder._id,
+      status: savedOrder.status,
+      totalPrice: savedOrder.totalPrice,
+      createdAt: savedOrder.createdAt,
+      customer: {
+        name: value.user.name || 'Customer',
+        mobile: value.mobile,
+      },
+      items: savedOrder.cart.length,
+      shippingAddress: {
+        city: value.shippingAddress.city,
+        area: value.shippingAddress.area,
+      },
+    }
+
+    // Emit socket event using global instance with retry
     if (global.io) {
-      global.io.emit('newOrder', {
-        orderId: savedOrder.orderId,
-        _id: savedOrder._id,
-        status: savedOrder.status,
-        totalPrice: savedOrder.totalPrice,
-        createdAt: savedOrder.createdAt,
-      })
-      console.log('Order notification sent:', savedOrder.orderId)
+      try {
+        // Emit newOrder event (this will be handled by the socket server)
+        global.io.emit('newOrder', {
+          ...notificationData,
+          type: 'new_order',
+          timestamp: new Date(),
+        })
+
+        console.log('Order notification sent:', savedOrder.orderId)
+      } catch (socketError) {
+        console.error('Socket notification error:', socketError)
+      }
     } else {
       console.warn('Socket.IO not initialized, notification not sent')
     }

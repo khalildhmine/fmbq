@@ -4,33 +4,35 @@ const next = require('next')
 const { Server } = require('socket.io')
 
 const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dev })
+const hostname = 'localhost'
+const port = process.env.PORT || 3000
+
+// Initialize Next.js
+const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
-  const server = createServer((req, res) => {
-    const parsedUrl = parse(req.url, true)
-
-    // Handle Socket.IO path specifically
-    if (parsedUrl.pathname.startsWith('/api/socketio')) {
+  // Create HTTP server
+  const server = createServer(async (req, res) => {
+    try {
+      const parsedUrl = parse(req.url, true)
+      await handle(req, res, parsedUrl)
+    } catch (err) {
+      console.error('Error occurred handling', req.url, err)
       res.statusCode = 500
-      res.end('Socket.IO path handled internally')
-      return
+      res.end('Internal server error')
     }
-
-    handle(req, res, parsedUrl)
   })
 
-  // Initialize Socket.IO with proper path
+  // Initialize Socket.IO
   const io = new Server(server, {
-    path: '/api/socketio',
+    path: '/api/socket',
     addTrailingSlash: false,
     cors: {
       origin: '*',
       methods: ['GET', 'POST'],
       credentials: true,
     },
-    transports: ['websocket', 'polling'],
     connectionStateRecovery: {
       maxDisconnectionDuration: 2 * 60 * 1000,
       skipMiddlewares: true,
@@ -39,37 +41,50 @@ app.prepare().then(() => {
     pingInterval: 10000,
   })
 
-  // Store io instance globally
-  global.io = io
-
-  // Basic Socket.IO connection handling
+  // Socket.IO event handlers
   io.on('connection', socket => {
     console.log('Client connected:', socket.id)
 
-    socket.on('error', error => {
-      console.error('Socket error:', error)
+    // Join admin room if user is admin
+    if (socket.handshake.query.role === 'admin') {
+      socket.join('admin-room')
+      console.log('Admin joined admin room:', socket.id)
+    }
+
+    // Handle order notifications
+    socket.on('newOrder', order => {
+      console.log('New order received:', order.orderId)
+
+      // Broadcast to all clients
+      io.emit('orderNotification', {
+        ...order,
+        timestamp: new Date(),
+        type: 'order',
+      })
+
+      // Also emit to admin room specifically
+      io.to('admin-room').emit('adminOrderNotification', {
+        ...order,
+        timestamp: new Date(),
+        type: 'order',
+      })
     })
 
     socket.on('disconnect', reason => {
       console.log('Client disconnected:', socket.id, 'Reason:', reason)
     })
 
-    // Handle new order notifications
-    socket.on('newOrder', order => {
-      console.log('New order received:', order.orderId)
-      io.emit('orderNotification', order)
-    })
-
-    // Handle heartbeat
-    socket.on('heartbeat', data => {
-      socket.emit('heartbeat_ack', { received: data.timestamp, server_time: Date.now() })
+    socket.on('error', error => {
+      console.error('Socket error:', error)
     })
   })
 
-  const PORT = process.env.PORT || 3000
-  server.listen(PORT, err => {
+  // Make io available globally
+  global.io = io
+
+  // Start server
+  server.listen(port, err => {
     if (err) throw err
-    console.log(`> Ready on http://localhost:${PORT}`)
-    console.log('> Socket.IO server initialized on /api/socketio')
+    console.log(`> Ready on http://${hostname}:${port}`)
   })
 })

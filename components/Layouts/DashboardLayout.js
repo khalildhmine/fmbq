@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Bell, Menu, Search, Settings, X } from 'lucide-react'
 import Link from 'next/link'
 import DashboardAside from '../DashboardAside'
 import { useNotifications } from '../../services/notificationService'
-import { initSocket } from '../../utils/socketClient'
+import { initSocket } from '@/lib/socket'
 import { useRouter } from 'next/navigation'
 
 export default function DashboardLayout({ children }) {
@@ -13,44 +13,163 @@ export default function DashboardLayout({ children }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [isNewNotification, setIsNewNotification] = useState(false)
+  const notificationSoundRef = useRef(null)
+  const socketRef = useRef(null)
   const { notifications, markAsRead, markAllAsRead, removeNotification, addNotification } =
     useNotifications()
   const unreadCount = notifications.filter(n => !n.isRead).length
 
-  // Initialize socket connection
+  // Initialize notification sound
   useEffect(() => {
-    const socket = initSocket()
+    const initializeSound = async () => {
+      try {
+        // Create audio context
+        const AudioContext = window.AudioContext || window.webkitAudioContext
+        const audioContext = new AudioContext()
 
-    // Listen for order notifications
-    socket.on('orderNotification', order => {
-      console.log('Received order notification:', order)
+        // Load notification sound
+        const sound = new Audio('/notification-sound.mp3')
+        sound.volume = 0.7
 
-      // Create notification object
-      const notification = {
-        id: `order-${order._id}-${Date.now()}`,
-        type: 'order',
-        title: 'New Order Received',
-        message: `Order #${order.orderId} has been placed - ${order.totalPrice.toFixed(2)}`,
-        time: new Date().toISOString(),
-        isRead: false,
-        data: order,
+        // Add error handling
+        sound.onerror = error => {
+          console.error('Error loading notification sound:', error)
+        }
+
+        // Load and test sound
+        await sound.load()
+        notificationSoundRef.current = sound
+
+        // Test sound on load (muted)
+        const testPlay = async () => {
+          try {
+            notificationSoundRef.current.muted = true
+            await notificationSoundRef.current.play()
+            notificationSoundRef.current.muted = false
+            console.log('Notification sound initialized successfully')
+          } catch (error) {
+            console.warn('Sound test failed:', error)
+          }
+        }
+        testPlay()
+      } catch (error) {
+        console.error('Failed to initialize notification sound:', error)
       }
+    }
 
-      // Add notification
-      addNotification(notification)
+    initializeSound()
 
-      // Show browser notification if permitted
-      if (Notification.permission === 'granted') {
-        new Notification('New Order Received', {
-          body: `Order #${order.orderId} has been placed - ${order.totalPrice.toFixed(2)}`,
-          icon: '/favicon.ico',
+    // Cleanup
+    return () => {
+      if (notificationSoundRef.current) {
+        notificationSoundRef.current.pause()
+        notificationSoundRef.current = null
+      }
+    }
+  }, [])
+
+  // Initialize socket connection with reconnection logic
+  useEffect(() => {
+    const initializeSocket = () => {
+      try {
+        const socket = initSocket({
+          query: { role: 'admin' },
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
         })
+        socketRef.current = socket
+
+        // Listen for order notifications
+        socket.on('orderNotification', order => {
+          console.log('Received order notification:', order)
+
+          // Create notification object
+          const notification = {
+            id: `order-${order._id}-${Date.now()}`,
+            type: 'order',
+            title: 'New Order Received! 🛍️',
+            message: `Order #${order.orderId} - ${order.totalPrice.toFixed(2)} MRU\nCustomer: ${order.customer?.name || 'Customer'}\nLocation: ${order.shippingAddress?.city || 'N/A'}`,
+            time: new Date().toISOString(),
+            isRead: false,
+            data: order,
+          }
+
+          // Add notification
+          addNotification(notification)
+
+          // Play notification sound with retry
+          const playSound = async (retries = 3) => {
+            try {
+              if (notificationSoundRef.current) {
+                notificationSoundRef.current.currentTime = 0 // Reset to start
+                await notificationSoundRef.current.play()
+              } else {
+                throw new Error('Notification sound not initialized')
+              }
+            } catch (error) {
+              console.warn('Could not play notification sound:', error)
+              if (retries > 0) {
+                console.log(`Retrying sound playback... (${retries} attempts left)`)
+                setTimeout(() => playSound(retries - 1), 500)
+              }
+            }
+          }
+
+          // Start sound playback
+          playSound()
+
+          // Show browser notification if permitted
+          if (Notification.permission === 'granted') {
+            new Notification('New Order Received! 🛍️', {
+              body: `Order #${order.orderId} - ${order.totalPrice.toFixed(2)} MRU\nCustomer: ${order.customer?.name || 'Customer'}\nLocation: ${order.shippingAddress?.city || 'N/A'}`,
+              icon: '/favicon.ico',
+              silent: true, // We'll handle the sound ourselves
+            })
+          }
+        })
+
+        // Handle socket disconnection
+        socket.on('disconnect', reason => {
+          console.log('Socket disconnected:', reason)
+          if (reason === 'io server disconnect' || reason === 'transport error') {
+            // Reconnect if the disconnection wasn't initiated by the client
+            setTimeout(() => {
+              console.log('Attempting to reconnect socket...')
+              socket.connect()
+            }, 1000)
+          }
+        })
+
+        // Handle socket connection error
+        socket.on('connect_error', error => {
+          console.error('Socket connection error:', error)
+          // Attempt to reconnect
+          setTimeout(() => {
+            console.log('Attempting to reconnect socket after error...')
+            socket.connect()
+          }, 1000)
+        })
+
+        return socket
+      } catch (error) {
+        console.error('Failed to initialize socket:', error)
+        // Retry initialization after delay
+        setTimeout(initializeSocket, 2000)
       }
-    })
+    }
+
+    const socket = initializeSocket()
 
     // Cleanup socket listeners on unmount
     return () => {
-      socket.off('orderNotification')
+      if (socketRef.current) {
+        socketRef.current.off('orderNotification')
+        socketRef.current.off('disconnect')
+        socketRef.current.off('connect_error')
+        socketRef.current.disconnect()
+      }
     }
   }, [addNotification])
 
@@ -107,12 +226,16 @@ export default function DashboardLayout({ children }) {
               {/* Notifications */}
               <div className="relative">
                 <button
-                  className="p-2 hover:bg-gray-100 rounded-lg relative"
+                  className={`p-2 hover:bg-gray-100 rounded-lg relative ${
+                    isNewNotification ? 'animate-shake' : ''
+                  }`}
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
                 >
-                  <Bell className="h-5 w-5 text-gray-600" />
+                  <Bell
+                    className={`h-5 w-5 ${unreadCount > 0 ? 'text-red-500' : 'text-gray-600'}`}
+                  />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                    <span className="absolute top-1 right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center animate-bounce">
                       <span className="text-xs text-white font-medium">{unreadCount}</span>
                     </span>
                   )}
@@ -283,6 +406,39 @@ export default function DashboardLayout({ children }) {
           }
           50% {
             opacity: 0.5;
+          }
+        }
+
+        @keyframes shake {
+          0%,
+          100% {
+            transform: translateX(0);
+          }
+          25% {
+            transform: translateX(-5px);
+          }
+          75% {
+            transform: translateX(5px);
+          }
+        }
+
+        .animate-shake {
+          animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
+
+        .animate-bounce {
+          animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+          0%,
+          100% {
+            transform: translateY(-25%);
+            animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+          }
+          50% {
+            transform: translateY(0);
+            animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
           }
         }
       `}</style>
