@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { productRepo } from '@/helpers/db-repo/product-repo'
 import { connectToDatabase } from '@/helpers/db'
+import { Product } from '@/models'
 
 // GET a single product by ID
 export async function GET(request, { params }) {
@@ -8,12 +9,12 @@ export async function GET(request, { params }) {
     await connectToDatabase()
 
     const { id } = params
-    console.log('Fetching product details for ID:', id)
+    console.log('🔍 Fetching product details for ID:', id)
 
     const result = await productRepo.getItemDetail(id)
 
     if (result.notFound) {
-      console.error('Product not found:', result.error)
+      console.error('❌ Product not found:', result.error)
       return NextResponse.json(
         {
           success: false,
@@ -28,17 +29,84 @@ export async function GET(request, { params }) {
     if (!product.sizes) product.sizes = []
     if (!product.colors) product.colors = []
 
-    console.log('Product options found:', {
-      sizes: product.sizes.length,
-      colors: product.colors.length,
+    console.log('📦 Product found:', {
+      id: product._id,
+      categoryHierarchy: product.categoryHierarchy,
+      category_levels: product.category_levels,
+      brand: product.brand?._id,
+      colors: product.colors?.length,
+      sizes: product.sizes?.length,
     })
+
+    // Build query for similar products
+    const similarQuery = {
+      _id: { $ne: product._id }, // Exclude current product
+      $or: [],
+    }
+
+    // Add category-based conditions
+    if (product.categoryHierarchy?.subCategory) {
+      similarQuery.$or.push({
+        'categoryHierarchy.subCategory': product.categoryHierarchy.subCategory,
+      })
+    }
+    if (product.categoryHierarchy?.mainCategory) {
+      similarQuery.$or.push({
+        'categoryHierarchy.mainCategory': product.categoryHierarchy.mainCategory,
+      })
+    }
+    if (product.category_levels?.level_two) {
+      similarQuery.$or.push({
+        'category_levels.level_two': product.category_levels.level_two,
+      })
+    }
+    if (product.category_levels?.level_one) {
+      similarQuery.$or.push({
+        'category_levels.level_one': product.category_levels.level_one,
+      })
+    }
+
+    // Add brand-based condition
+    if (product.brand) {
+      similarQuery.$or.push({ brand: product.brand })
+    }
+
+    // Add color-based condition if product has colors
+    if (product.colors?.length > 0) {
+      const colorHashCodes = product.colors.map(c => c.hashCode).filter(Boolean)
+      if (colorHashCodes.length > 0) {
+        similarQuery.$or.push({
+          'colors.hashCode': { $in: colorHashCodes },
+        })
+      }
+    }
+
+    console.log('🔍 Similar products query:', JSON.stringify(similarQuery, null, 2))
+
+    // Fetch similar products
+    const similarProducts = await Product.find(similarQuery)
+      .limit(10)
+      .sort({ sold: -1 }) // Sort by most sold
+      .populate('brand', 'name logo')
+      .populate('category')
+      .populate('categoryHierarchy.mainCategory')
+      .populate('categoryHierarchy.subCategory')
+      .lean()
+
+    console.log(`✨ Found ${similarProducts.length} similar products`)
 
     return NextResponse.json({
       success: true,
-      data: result,
+      data: {
+        product: result.product,
+        smilarProducts: {
+          products: similarProducts,
+          total: similarProducts.length,
+        },
+      },
     })
   } catch (error) {
-    console.error('Error fetching product:', error)
+    console.error('❌ Error fetching product:', error)
     return NextResponse.json(
       {
         success: false,

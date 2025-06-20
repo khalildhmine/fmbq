@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/helpers/db'
 import { Brand } from '@/models'
+import mongoose from 'mongoose'
 
 // Force dynamic to ensure we always get fresh data
 export const dynamic = 'force-dynamic'
@@ -10,6 +11,11 @@ export async function GET(request, { params }) {
   try {
     await connectToDatabase()
     const brandId = params.brandId
+
+    // Check if brandId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(brandId)) {
+      return Response.json({ success: false, message: 'Invalid brand id' }, { status: 400 })
+    }
 
     if (!brandId) {
       return NextResponse.json({ success: false, message: 'Brand ID is required' }, { status: 400 })

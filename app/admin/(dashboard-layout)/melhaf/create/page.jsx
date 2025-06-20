@@ -21,7 +21,7 @@ export default function CreateMelhafPage() {
     try {
       const uploadPromises = files.map(async file => {
         // First get the upload signature from our API
-        const uploadUrlRes = await fetch('https://fmbq.vercel.app/api/upload/get-upload-url', {
+        const uploadUrlRes = await fetch('http://192.168.100.3:3000/api/upload/get-upload-url', {
           method: 'POST',
         })
 

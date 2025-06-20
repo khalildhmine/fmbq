@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/helpers/db'
 import Order from '@/models/Order'
 import Product from '@/models/Product'
 import Joi from 'joi'
+import nodemailer from 'nodemailer'
 
 const orderSchema = Joi.object({
   user: Joi.string().required(),
@@ -195,6 +196,100 @@ export async function POST(req) {
       }
     } else {
       console.warn('Socket.IO not initialized, notification not sent')
+    }
+
+    // Send email notification to abdel_sid2607@yahoo.fr and dhminekhalil@gmail.com
+    try {
+      // Configure transporter (use your SMTP credentials in production)
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER || 'ilokakilos@gmail.com', // replace with your email or use env
+          pass: process.env.EMAIL_PASS || 'qkzp xfhx ihqp wopw', // replace with your app password or use env
+        },
+      })
+
+      // Build cart details HTML
+      const cartRows = savedOrder.cart
+        .map(
+          (item, idx) => `
+            <tr>
+              <td style="padding:4px 8px;border:1px solid #ddd;">${idx + 1}</td>
+              <td style="padding:4px 8px;border:1px solid #ddd;">
+                <img src="${item.image}" alt="${item.name}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;" />
+              </td>
+              <td style="padding:4px 8px;border:1px solid #ddd;">${item.name}</td>
+              <td style="padding:4px 8px;border:1px solid #ddd;">${item.color?.name || '-'}</td>
+              <td style="padding:4px 8px;border:1px solid #ddd;">${item.size?.size || '-'}</td>
+              <td style="padding:4px 8px;border:1px solid #ddd;">${item.quantity}</td>
+              <td style="padding:4px 8px;border:1px solid #ddd;">${item.price} MRU</td>
+              <td style="padding:4px 8px;border:1px solid #ddd;">${item.discount || 0} MRU</td>
+            </tr>
+          `
+        )
+        .join('')
+
+      const cartTable = `
+        <table style="border-collapse:collapse;width:100%;margin-top:12px;">
+          <thead>
+            <tr>
+              <th style="padding:4px 8px;border:1px solid #ddd;">#</th>
+              <th style="padding:4px 8px;border:1px solid #ddd;">Image</th>
+              <th style="padding:4px 8px;border:1px solid #ddd;">Product</th>
+              <th style="padding:4px 8px;border:1px solid #ddd;">Color</th>
+              <th style="padding:4px 8px;border:1px solid #ddd;">Size</th>
+              <th style="padding:4px 8px;border:1px solid #ddd;">Qty</th>
+              <th style="padding:4px 8px;border:1px solid #ddd;">Price</th>
+              <th style="padding:4px 8px;border:1px solid #ddd;">Discount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${cartRows}
+          </tbody>
+        </table>
+      `
+
+      // Order summary details
+      const orderSummary = `
+        <ul style="list-style:none;padding:0;">
+          <li><b>Order Number:</b> ${savedOrder.orderId}</li>
+          <li><b>Customer:</b> ${value.user.name || 'Customer'}</li>
+          <li><b>Mobile:</b> ${value.mobile}</li>
+          <li><b>Address:</b> ${savedOrder.shippingAddress?.street || ''}, ${savedOrder.shippingAddress?.area || ''}, ${savedOrder.shippingAddress?.city || ''}, ${savedOrder.shippingAddress?.province || ''}, ${savedOrder.shippingAddress?.postalCode || ''}</li>
+          <li><b>Payment Method:</b> ${savedOrder.paymentMethod}</li>
+          <li><b>Status:</b> ${savedOrder.status}</li>
+          <li><b>Total Items:</b> ${savedOrder.totalItems}</li>
+          <li><b>Subtotal Before Discounts:</b> ${savedOrder.subtotalBeforeDiscounts} MRU</li>
+          <li><b>Total Discount:</b> ${savedOrder.totalDiscount} MRU</li>
+          <li><b>Shipping Cost:</b> ${savedOrder.shippingCost || 0} MRU</li>
+          <li><b>Total Price:</b> <span style="color:#007b00;font-weight:bold;">${savedOrder.totalPrice} MRU</span></li>
+          <li><b>Order Date:</b> ${new Date(savedOrder.createdAt).toLocaleString('fr-FR')}</li>
+        </ul>
+      `
+
+      const mailOptions = {
+        from: process.env.EMAIL_USER || 'ilokakilos@gmail.com',
+        to: ['formen.boutiqueen@gmail.com', 'dhminekhalil@gmail.com'],
+        subject: `🛒 Nouvelle commande reçue: ${savedOrder.orderId}`,
+        text: `A new order has been placed.\nOrder Number: ${savedOrder.orderId}\nCustomer: ${value.user.name || 'Customer'}\nTotal Price: ${savedOrder.totalPrice}\n\nPlease check the admin panel for more details.`,
+        html: `
+          <div style="font-family:sans-serif;">
+            <h2 style="color:#007b00;">Nouvelle commande reçue</h2>
+            ${orderSummary}
+            <h3 style="margin-top:24px;">Détails du panier</h3>
+            ${cartTable}
+            <p style="margin-top:24px;">Merci de vérifier le panneau d'administration.</p>
+          </div>
+        `,
+      }
+
+      await transporter.sendMail(mailOptions)
+      console.log(
+        'Order email notification sent to abdel_sid2607@yahoo.fr and dhminekhalil@gmail.com'
+      )
+    } catch (emailError) {
+      console.error('Failed to send order email notification:', emailError)
+      // Don't fail the order creation if email fails
     }
 
     return NextResponse.json(

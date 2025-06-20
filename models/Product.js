@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import Brand from './Brand'
 
 const sizeSchema = new mongoose.Schema({
   id: String,
@@ -141,7 +142,6 @@ productSchema.methods.updateSales = async function (quantity, price) {
 
   // Update brand stats if product has a brand
   if (this.brand) {
-    const Brand = mongoose.model('Brand')
     await Brand.findByIdAndUpdate(this.brand, {
       $inc: {
         totalSales: quantity,
