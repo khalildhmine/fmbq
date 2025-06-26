@@ -1,16 +1,21 @@
 import { db } from '@/helpers'
-import { ProductHistory } from '@/models'
-import { auth } from '@/helpers'
+import { History, Product } from '@/models'
 import { apiHandler } from '@/helpers/api'
 import { setJson } from '@/helpers/api'
-import History from '@/models/History'
-import { Product } from '@/models'
 
 // Get user's history
 export const GET = apiHandler(async req => {
   try {
     const userId = req.headers.get('userId')
-    console.log('Fetching history for user:', userId)
+
+    // If no userId, return empty history (client will use local storage)
+    if (!userId) {
+      return setJson({
+        code: 200,
+        message: 'No user ID provided, using local storage only',
+        data: [],
+      })
+    }
 
     const history = await History.find({ user: userId })
       .populate({
@@ -20,8 +25,6 @@ export const GET = apiHandler(async req => {
       })
       .sort({ lastViewed: -1 })
       .lean()
-
-    console.log(`Found ${history.length} history items`)
 
     return setJson({
       code: 200,
@@ -42,16 +45,20 @@ export const GET = apiHandler(async req => {
 export const POST = apiHandler(async req => {
   try {
     const userId = req.headers.get('userId')
-    const { productId } = await req.json() // The productId will now be correctly extracted
+    const { productId } = await req.json()
 
-    console.log('Adding to history:', { userId, productId })
+    // If no userId, don't save to database
+    if (!userId) {
+      return setJson({
+        code: 200,
+        message: 'No user ID provided, using local storage only',
+      })
+    }
 
-    if (!userId || !productId) {
-      console.log('Missing required fields:', { userId, productId })
+    if (!productId) {
       return setJson({
         code: 400,
-        message: 'Missing required fields',
-        error: 'UserId and productId are required',
+        message: 'Missing product ID',
       })
     }
 
@@ -59,7 +66,7 @@ export const POST = apiHandler(async req => {
     let historyEntry = await History.findOne({
       user: userId,
       productId,
-    }).lean()
+    })
 
     if (historyEntry) {
       // Update existing entry
@@ -74,35 +81,31 @@ export const POST = apiHandler(async req => {
         path: 'productId',
         select: '_id title price images description discount inStock',
       })
-
-      console.log('Updated existing history entry:', historyEntry)
     } else {
       // Create new entry
       historyEntry = await History.create({
         user: userId,
         productId,
+        lastViewed: new Date(),
+        viewCount: 1,
       })
 
-      historyEntry = await History.findById(historyEntry._id)
-        .populate({
-          path: 'productId',
-          select: '_id title price images description discount inStock',
-        })
-        .lean()
-
-      console.log('Created new history entry:', historyEntry)
+      historyEntry = await History.findById(historyEntry._id).populate({
+        path: 'productId',
+        select: '_id title price images description discount inStock',
+      })
     }
 
     return setJson({
       code: 200,
-      message: 'Added to history successfully',
+      message: 'History updated successfully',
       data: historyEntry,
     })
   } catch (error) {
-    console.error('Error adding to history:', error)
+    console.error('Error updating history:', error)
     return setJson({
       code: 500,
-      message: 'Failed to add to history',
+      message: 'Failed to update history',
       error: error.message,
     })
   }

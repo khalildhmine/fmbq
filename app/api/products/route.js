@@ -323,6 +323,109 @@ const getProductsByCategories = apiHandler(async req => {
   }
 })
 
+function buildProductFilter(query) {
+  const filter = { inStock: { $gt: 0 } }
+
+  // Price range
+  if (query.price_min || query.price_max) {
+    filter.price = {}
+    if (query.price_min) filter.price.$gte = Number(query.price_min)
+    if (query.price_max) filter.price.$lte = Number(query.price_max)
+  }
+
+  // Brand
+  if (query.brand) {
+    filter.brand = query.brand
+  }
+
+  // Colors (support both name and hashCode, and arrays)
+  if (query.colors) {
+    let colors = query.colors
+    if (typeof colors === 'string') {
+      try {
+        colors = JSON.parse(colors)
+      } catch {
+        // Split on comma, then trim and filter out empty/invalid
+        colors = colors
+          .split(',')
+          .map(c => c.trim())
+          .filter(Boolean)
+          // Only allow single words (no spaces) to avoid "Pink gray" bug
+          .filter(c => !/\s/.test(c))
+      }
+    }
+    if (Array.isArray(colors)) {
+      if (colors.length && colors[0].startsWith && colors[0].startsWith('#')) {
+        filter['colors.hashCode'] = { $in: colors }
+      } else {
+        filter['colors.name'] = { $in: colors }
+      }
+    } else if (typeof colors === 'string' && colors.length > 0) {
+      // Convert single string to array for $in, only if no spaces
+      if (!/\s/.test(colors)) {
+        if (colors.startsWith('#')) {
+          filter['colors.hashCode'] = { $in: [colors] }
+        } else {
+          filter['colors.name'] = { $in: [colors] }
+        }
+      }
+    }
+  }
+
+  // Sizes (ALWAYS use sizes.size, never sizes directly)
+  if (query.sizes) {
+    let sizes = query.sizes
+    if (typeof sizes === 'string') {
+      try {
+        sizes = JSON.parse(sizes)
+      } catch {
+        sizes = sizes
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+          .filter(s => !/\s/.test(s))
+      }
+    }
+    if (Array.isArray(sizes)) {
+      filter['sizes.size'] = { $in: sizes }
+    } else if (typeof sizes === 'string' && sizes.length > 0 && !/\s/.test(sizes)) {
+      filter['sizes.size'] = { $in: [sizes] }
+    }
+  }
+
+  // On Sale (discount > 0)
+  if (query.discount === 'true' || query.discount === true) {
+    filter.discount = { $gt: 0 }
+  }
+
+  // In Stock (inStock > 0) is already handled above
+
+  // Gender
+  if (query.gender) {
+    filter.gender = query.gender
+  }
+
+  // Category
+  if (query.category) {
+    filter.$or = [
+      { 'categoryHierarchy.mainCategory': query.category },
+      { 'categoryHierarchy.subCategory': query.category },
+      { category: query.category },
+    ]
+  }
+
+  // Search (text or regex)
+  if (query.search) {
+    filter.$or = [
+      { name: { $regex: query.search, $options: 'i' } },
+      { title: { $regex: query.search, $options: 'i' } },
+      { description: { $regex: query.search, $options: 'i' } },
+    ]
+  }
+
+  return filter
+}
+
 export async function GET(req) {
   try {
     await connectToDatabase()

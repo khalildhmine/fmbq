@@ -31,7 +31,6 @@ export async function POST(request) {
 
     // Handle notification settings update
     if ('notificationsEnabled' in payload) {
-      // For disabling notifications, allow null/empty token
       if (!payload.notificationsEnabled) {
         user.notificationsEnabled = false
         user.expoPushToken = null
@@ -39,11 +38,15 @@ export async function POST(request) {
           enabled: false,
           expoPushToken: null,
         }
+        // Do NOT validate expoPushToken if disabling
       } else {
-        // For enabling, require valid token
-        if (!payload.expoPushToken) {
+        // Only validate if enabling
+        if (!payload.expoPushToken || !isValidExpoPushToken(payload.expoPushToken)) {
           return Response.json(
-            { success: false, error: 'Push token required when enabling notifications' },
+            {
+              success: false,
+              error: 'Push token required and must be valid when enabling notifications',
+            },
             { status: 400 }
           )
         }

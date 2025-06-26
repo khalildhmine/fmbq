@@ -120,6 +120,14 @@ const productSchema = new mongoose.Schema(
   }
 )
 
+// Add indexes for filtering optimization
+productSchema.index({ price: 1 })
+productSchema.index({ brand: 1 })
+productSchema.index({ 'categoryHierarchy.mainCategory': 1 })
+productSchema.index({ 'categoryHierarchy.subCategory': 1 })
+productSchema.index({ category: 1 })
+productSchema.index({ sold: -1 })
+
 // Add any pre-save hooks or methods here
 productSchema.pre('save', function (next) {
   if (!this.slug) {
