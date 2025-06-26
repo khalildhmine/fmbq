@@ -6,6 +6,8 @@ import '/styles/swiper.css'
 import 'antd/dist/reset.css'
 import ClientLayout from './ClientLayout'
 
+// PROFESSIONAL APP WOP !!
+
 const inter = Inter({ subsets: ['latin'] })
 
 export default function RootLayout({ children }) {
