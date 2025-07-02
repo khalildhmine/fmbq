@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createAccessToken } from '@/lib/auth'
-import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 import User from '@/models/User'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request) {
   try {
     const { email, password } = await request.json()
-    await connectDb()
+    await connectToDatabase()
 
     const user = await User.findOne({ email }).select('+password')
     if (!user) {

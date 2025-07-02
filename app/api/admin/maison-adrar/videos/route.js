@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
-import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 import MaisonAdrarVideo from '@/models/MaisonAdrarVideo'
 import MaisonAdrar from '@/models/MaisonAdrar'
 
@@ -72,7 +72,7 @@ export async function GET(req) {
 
     // Connect to database
     console.log('Connecting to MongoDB using Mongoose...')
-    await connectDb()
+    await connectToDatabase()
 
     // Parse query parameters
     const url = new URL(req.url)
@@ -165,7 +165,7 @@ export async function POST(req) {
     }
 
     // Connect to database
-    await connectDb()
+    await connectToDatabase()
 
     try {
       // If perfumeId is provided, validate it exists and get the name

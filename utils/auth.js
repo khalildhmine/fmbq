@@ -74,3 +74,61 @@ export const authFetch = async (url, options = {}) => {
   const response = await fetch(url, fetchOptions)
   return await response.json()
 }
+
+/**
+ * Verify authentication from request headers or cookies
+ * @param {Request} req - The incoming request object
+ * @returns {Promise<{success: boolean, userId?: string}>} Authentication result
+ */
+export const verifyAuth = async req => {
+  try {
+    // Get token from Authorization header or cookies
+    const authHeader = req.headers.get('authorization')
+    let token = authHeader ? authHeader.split(' ')[1] : null
+
+    if (!token) {
+      const cookieHeader = req.headers.get('cookie')
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';')
+        const tokenCookie = cookies.find(c => c.trim().startsWith('token='))
+        if (tokenCookie) {
+          token = tokenCookie.split('=')[1]
+        }
+      }
+    }
+
+    if (!token) {
+      return { success: false, error: 'No token provided' }
+    }
+
+    // Dynamically import server-side dependencies using relative paths
+    const { verifyToken } = await import('../helpers/jwt')
+    const { connectDb } = await import('../lib/db')
+    const User = (await import('../models/User')).default
+
+    const decoded = await verifyToken(token)
+
+    if (!decoded || !decoded.id) {
+      return { success: false, error: 'Invalid token' }
+    }
+
+    await connectDb()
+    // Check both `role` and `isAdmin` fields for robustness
+    const user = await User.findById(decoded.id).select('role isAdmin').lean()
+
+    if (!user) {
+      return { success: false, error: 'User not found' }
+    }
+
+    const isAdmin = user.role === 'admin' || user.isAdmin === true
+
+    return {
+      success: true,
+      userId: decoded.id,
+      isAdmin,
+    }
+  } catch (error) {
+    console.error('Auth verification error:', error)
+    return { success: false, error: 'Authentication failed' }
+  }
+}

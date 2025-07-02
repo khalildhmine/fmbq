@@ -1,10 +1,11 @@
-import { connectDb } from '@/lib/db'
+// import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 import MaisonAdrar from '@/models/MaisonAdrar'
 import { NextResponse } from 'next/server'
 
 export async function GET(req) {
   try {
-    await connectDb()
+    await connectToDatabase()
 
     const { searchParams } = new URL(req.url)
     const page = parseInt(searchParams.get('page')) || 1

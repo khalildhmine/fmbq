@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import Order from '@/models/Order'
 import jwt from 'jsonwebtoken'
-import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 
 // Helper function to extract token from request
 function extractToken(req) {
@@ -46,7 +46,7 @@ export async function GET(request) {
 
     // 3. Connect to database
     try {
-      await connectDb()
+      await connectToDatabase()
       console.log('[Delivery Management] Connected to database')
     } catch (dbError) {
       console.error('[Delivery Management] Database connection error:', dbError)

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
-import { connectDb } from '@/lib/db'
+// import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 
 import MaisonAdrar from '@/models/MaisonAdrar'
-import { connectToDatabase } from '@/helpers/db'
 
 // Helper function to extract token from various sources
 function extractToken(req) {

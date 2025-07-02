@@ -61,3 +61,47 @@ export async function GET(request) {
     )
   }
 }
+
+// Create a new brand
+export async function POST(request) {
+  try {
+    await connectToDatabase()
+    const body = await request.json()
+
+    // Basic validation
+    if (!body.name) {
+      return NextResponse.json(
+        { success: false, message: 'Brand name is required' },
+        { status: 400 }
+      )
+    }
+
+    // Create and save the new brand
+    const brand = new Brand({
+      name: body.name,
+      logo: body.logo || '',
+      color: body.color || '',
+      description: body.description || '',
+      featured: !!body.featured,
+      slug: body.slug || body.name.toLowerCase().replace(/\s+/g, '-'),
+    })
+
+    await brand.save()
+
+    return NextResponse.json({
+      success: true,
+      message: 'Brand created successfully',
+      data: brand,
+    })
+  } catch (error) {
+    console.error('Error creating brand:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Failed to create brand',
+        error: error.message,
+      },
+      { status: 500 }
+    )
+  }
+}

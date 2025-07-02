@@ -1,435 +1,631 @@
+// 'use client'
+
+// import { useEffect, useState, useRef, useCallback } from 'react'
+// import io from 'socket.io-client'
+// import axios from 'axios'
+
+// const API_URL =
+//   typeof window !== 'undefined' && window.location.hostname === 'localhost'
+//     ? 'https://fmbq.vercel.app'
+//     : 'https://fmbq.vercel.app'
+
+// // --- FIX: Add /api/socketio as the socket path for Next.js custom serverless socket route ---
+// const SOCKET_CONFIG = {
+//   transports: ['websocket'],
+//   reconnection: true,
+//   reconnectionAttempts: Infinity,
+//   reconnectionDelay: 2000,
+//   reconnectionDelayMax: 10000,
+//   timeout: 30000,
+//   autoConnect: true,
+//   forceNew: false,
+//   upgrade: false,
+//   rememberUpgrade: true,
+//   path: '/api/socketio', // <--- This is critical for Next.js API route!
+// }
+
+// const useSocket = (isAdmin = false, roomId = null, userId = null) => {
+//   const [socket, setSocket] = useState(null)
+//   const [isConnected, setIsConnected] = useState(false)
+//   const [error, setError] = useState(null)
+//   const [messages, setMessages] = useState([])
+//   const [connectionAttempts, setConnectionAttempts] = useState(0)
+
+//   // Refs for cleanup and persistence
+//   const socketRef = useRef(null)
+//   const heartbeatIntervalRef = useRef(null)
+//   const reconnectTimeoutRef = useRef(null)
+//   const mountedRef = useRef(true)
+
+//   // Clear all timers and intervals
+//   const clearTimers = useCallback(() => {
+//     if (heartbeatIntervalRef.current) {
+//       clearInterval(heartbeatIntervalRef.current)
+//       heartbeatIntervalRef.current = null
+//     }
+//     if (reconnectTimeoutRef.current) {
+//       clearTimeout(reconnectTimeoutRef.current)
+//       reconnectTimeoutRef.current = null
+//     }
+//   }, [])
+
+//   // Enhanced connection function with proper error handling
+//   const connectSocket = useCallback(() => {
+//     if (!mountedRef.current) return
+
+//     console.log('🔌 Initializing socket connection...')
+
+//     // Clean up existing socket
+//     if (socketRef.current) {
+//       console.log('🧹 Cleaning up existing socket')
+//       socketRef.current.removeAllListeners()
+//       socketRef.current.disconnect()
+//       socketRef.current = null
+//     }
+
+//     clearTimers()
+//     setError(null)
+
+//     try {
+//       // --- FIX: Use API_URL and SOCKET_CONFIG with correct path ---
+//       console.log('🚀 Creating new socket with config:', SOCKET_CONFIG)
+//       const socketInstance = io(API_URL, SOCKET_CONFIG)
+//       socketRef.current = socketInstance
+//       setSocket(socketInstance)
+
+//       // Connection successful
+//       socketInstance.on('connect', () => {
+//         if (!mountedRef.current) return
+
+//         console.log('✅ Socket connected successfully')
+//         console.log('🔗 Socket ID:', socketInstance.id)
+//         console.log('🚗 Transport:', socketInstance.io?.engine?.transport?.name)
+
+//         setIsConnected(true)
+//         setError(null)
+//         setConnectionAttempts(0)
+
+//         // Join admin room if admin
+//         if (isAdmin) {
+//           console.log('👨‍💼 Joining admin room...')
+//           socketInstance.emit('join_admin', {
+//             userId: userId,
+//             timestamp: Date.now(),
+//           })
+//         }
+//         // Always join the chat room if roomId is present
+//         if (roomId) {
+//           socketInstance.emit('join_chat', { caseId: roomId })
+//           console.log('[SOCKET][HOOK] join_chat emitted for room:', roomId)
+//         }
+
+//         // Start heartbeat to keep connection alive
+//         heartbeatIntervalRef.current = setInterval(() => {
+//           if (socketInstance.connected && mountedRef.current) {
+//             console.log('💓 Sending heartbeat')
+//             socketInstance.emit('heartbeat', {
+//               timestamp: Date.now(),
+//               userId: userId,
+//               isAdmin: isAdmin,
+//             })
+//           }
+//         }, 25000) // Send every 25 seconds
+//       })
+
+//       // Handle transport upgrade
+//       socketInstance.io.on('upgrade', transport => {
+//         console.log('⬆️ Transport upgraded to:', transport.name)
+//       })
+
+//       // Handle transport errors
+//       socketInstance.io.on('upgrade_error', error => {
+//         console.warn('⚠️ Transport upgrade error:', error)
+//       })
+
+//       // Handle disconnection
+//       socketInstance.on('disconnect', reason => {
+//         if (!mountedRef.current) return
+
+//         console.log('❌ Socket disconnected:', reason)
+//         setIsConnected(false)
+//         clearTimers()
+
+//         // Handle different disconnect reasons
+//         if (reason === 'io server disconnect') {
+//           console.log('🔄 Server initiated disconnect, reconnecting...')
+//           // Server disconnected, need to reconnect manually
+//           setTimeout(() => {
+//             if (mountedRef.current) {
+//               connectSocket()
+//             }
+//           }, 1000)
+//         } else if (reason === 'io client disconnect') {
+//           console.log('👤 Client initiated disconnect, not reconnecting')
+//           // Client disconnected manually, don't reconnect
+//         } else if (reason === 'transport error') {
+//           console.log('🚨 Transport error, attempting immediate reconnect')
+//           setConnectionAttempts(prev => prev + 1)
+//           // Transport error, try reconnecting immediately
+//           setTimeout(() => {
+//             if (mountedRef.current) {
+//               connectSocket()
+//             }
+//           }, 500)
+//         } else {
+//           console.log('🔄 Unexpected disconnect, reconnecting with delay')
+//           setConnectionAttempts(prev => prev + 1)
+//           // Other reasons, reconnect with delay
+//           const delay = Math.min(2000 * Math.pow(1.5, connectionAttempts), 15000)
+//           reconnectTimeoutRef.current = setTimeout(() => {
+//             if (mountedRef.current) {
+//               connectSocket()
+//             }
+//           }, delay)
+//         }
+//       })
+
+//       // Handle connection errors
+//       socketInstance.on('connect_error', err => {
+//         if (!mountedRef.current) return
+
+//         console.error('🚨 Connection error:', err.message)
+//         console.error('🚨 Error details:', err)
+//         setIsConnected(false)
+//         setError(err.message)
+//         setConnectionAttempts(prev => prev + 1)
+
+//         // Retry connection with exponential backoff
+//         const delay = Math.min(2000 * Math.pow(1.5, connectionAttempts), 30000)
+//         console.log(`⏳ Retrying connection in ${delay}ms (attempt ${connectionAttempts + 1})`)
+
+//         reconnectTimeoutRef.current = setTimeout(() => {
+//           if (mountedRef.current) {
+//             connectSocket()
+//           }
+//         }, delay)
+//       })
+
+//       // Handle reconnection
+//       socketInstance.on('reconnect', attemptNumber => {
+//         if (!mountedRef.current) return
+
+//         console.log('🔄 Reconnected after', attemptNumber, 'attempts')
+//         setIsConnected(true)
+//         setError(null)
+//         setConnectionAttempts(0)
+//       })
+
+//       // Handle reconnection attempts
+//       socketInstance.on('reconnect_attempt', attemptNumber => {
+//         console.log('🔄 Reconnection attempt:', attemptNumber)
+//         setConnectionAttempts(attemptNumber)
+//       })
+
+//       // Handle reconnection errors
+//       socketInstance.on('reconnect_error', error => {
+//         console.error('🚨 Reconnection error:', error)
+//         setError(`Reconnection failed: ${error.message}`)
+//       })
+
+//       // Handle reconnection failures
+//       socketInstance.on('reconnect_failed', () => {
+//         console.error('💀 All reconnection attempts failed')
+//         setError('Connection failed - all retry attempts exhausted')
+//         setIsConnected(false)
+//       })
+
+//       // Handle messages
+//       socketInstance.on('message', message => {
+//         if (!mountedRef.current) return
+
+//         console.log('📩 Received message:', message)
+//         setMessages(prevMessages => {
+//           // Prevent duplicate messages
+//           if (prevMessages.some(m => m.id === message.id || m._id === message._id)) {
+//             return prevMessages
+//           }
+//           return [...prevMessages, message]
+//         })
+//       })
+
+//       // Admin specific events
+//       if (isAdmin) {
+//         socketInstance.on('new_message', message => {
+//           if (!mountedRef.current) return
+//           console.log('📨 New admin message:', message)
+//         })
+
+//         socketInstance.on('new_chat', chatData => {
+//           if (!mountedRef.current) return
+//           console.log('💬 New chat:', chatData)
+//         })
+
+//         socketInstance.on('connection_status', data => {
+//           if (!mountedRef.current) return
+//           console.log('📊 Connection status:', data)
+//           if (data.status === 'connected') {
+//             setIsConnected(true)
+//           }
+//         })
+
+//         // Handle admin room join confirmation
+//         socketInstance.on('admin_joined', data => {
+//           if (!mountedRef.current) return
+//           console.log('✅ Admin room joined successfully:', data)
+//         })
+//       }
+//     } catch (err) {
+//       console.error('🚨 Socket initialization error:', err)
+//       setError(err.message)
+//       setIsConnected(false)
+
+//       // Retry initialization after delay
+//       setTimeout(() => {
+//         if (mountedRef.current) {
+//           connectSocket()
+//         }
+//       }, 5000)
+//     }
+//   }, [isAdmin, connectionAttempts, clearTimers, userId, roomId])
+
+//   // Initialize connection on mount
+//   useEffect(() => {
+//     mountedRef.current = true
+//     connectSocket()
+
+//     // Cleanup on unmount
+//     return () => {
+//       mountedRef.current = false
+//       clearTimers()
+//       if (socketRef.current) {
+//         socketRef.current.removeAllListeners()
+//         socketRef.current.disconnect()
+//       }
+//     }
+//   }, [connectSocket])
+
+//   // Send message function with error handling
+//   const sendMessage = useCallback(
+//     async messageContent => {
+//       if (!messageContent || !roomId || !userId) {
+//         console.warn('⚠️ Missing required parameters for sending message')
+//         return false
+//       }
+
+//       const socketInstance = socketRef.current
+
+//       if (!socketInstance || !socketInstance.connected) {
+//         console.error('❌ Socket not connected, cannot send message')
+//         setError('Socket not connected')
+//         return false
+//       }
+
+//       try {
+//         const messageData = {
+//           roomId,
+//           userId,
+//           content: messageContent,
+//           timestamp: new Date().toISOString(),
+//         }
+
+//         console.log('📤 Sending message via socket:', messageData)
+
+//         if (isAdmin) {
+//           socketInstance.emit('admin_message', messageData)
+//         } else {
+//           socketInstance.emit('message', messageData)
+//         }
+
+//         return true
+//       } catch (err) {
+//         console.error('❌ Error sending message:', err)
+//         setError(err.message)
+//         return false
+//       }
+//     },
+//     [roomId, userId, isAdmin]
+//   )
+
+//   // Manual reconnection function
+//   const reconnect = useCallback(() => {
+//     console.log('🔄 Manual reconnection triggered')
+//     connectSocket()
+//   }, [connectSocket])
+
+//   // Get connection status with detailed info
+//   const getConnectionStatus = useCallback(() => {
+//     const socketInstance = socketRef.current
+//     return {
+//       isConnected: isConnected && socketInstance?.connected,
+//       socketId: socketInstance?.id,
+//       transport: socketInstance?.io?.engine?.transport?.name,
+//       attempts: connectionAttempts,
+//       error: error,
+//     }
+//   }, [isConnected, connectionAttempts, error])
+
+//   return {
+//     socket: socketRef.current,
+//     isConnected: isConnected && socketRef.current?.connected,
+//     sendMessage,
+//     messages,
+//     error,
+//     connectionAttempts,
+//     reconnect,
+//     getConnectionStatus,
+//   }
+// }
+
+// export default useSocket
+
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import io from 'socket.io-client'
-import axios from 'axios'
 
-const API_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const API_URL =
+  typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'https://fmbq.vercel.app'
+    : 'https://fmbq.vercel.app'
+
 const SOCKET_CONFIG = {
-  path: '/api/socketio',
-  reconnectionAttempts: 10,
+  transports: ['websocket'],
+  reconnection: true,
+  reconnectionAttempts: Infinity,
   reconnectionDelay: 2000,
   reconnectionDelayMax: 10000,
-  randomizationFactor: 0.5,
-  timeout: 20000,
-  transports: ['websocket', 'polling'],
-  forceNew: true,
+  timeout: 30000,
   autoConnect: true,
-  addTrailingSlash: false,
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
+  forceNew: false,
+  upgrade: false,
+  rememberUpgrade: true,
+  path: '/api/socketio',
 }
 
-// Mock socket implementation as fallback
-const createMockSocket = () => {
-  const listeners = {}
-  const messageHistory = []
-
-  const mockSocket = {
-    // Keep track of all event listeners
-    on: (event, callback) => {
-      if (!listeners[event]) {
-        listeners[event] = []
-      }
-      listeners[event].push(callback)
-      console.log(`[MockSocket] Added listener for ${event}`)
-      return mockSocket
-    },
-
-    // Remove specific listener
-    off: (event, callback) => {
-      if (listeners[event]) {
-        listeners[event] = listeners[event].filter(cb => cb !== callback)
-        console.log(`[MockSocket] Removed listener for ${event}`)
-      }
-      return mockSocket
-    },
-
-    // Emit event to server (in mock, we just log it)
-    emit: (event, data) => {
-      console.log(`[MockSocket] Emitted ${event}:`, data)
-
-      // For chat messages, we can mock the server echoing back
-      if (event === 'send_message') {
-        // Store in message history
-        messageHistory.push(data)
-
-        // Wait a bit to simulate network delay
-        setTimeout(() => {
-          if (listeners['chat_message']) {
-            listeners['chat_message'].forEach(callback => {
-              callback(data)
-            })
-          }
-        }, 300)
-      }
-
-      return mockSocket
-    },
-
-    // Simulate receiving an event
-    mockReceive: (event, data) => {
-      if (listeners[event]) {
-        listeners[event].forEach(callback => {
-          callback(data)
-        })
-      }
-    },
-
-    // Mock disconnect
-    disconnect: () => {
-      console.log('[MockSocket] Disconnected')
-    },
-
-    // Mock reconnect
-    connect: () => {
-      if (listeners['connect']) {
-        listeners['connect'].forEach(callback => callback())
-      }
-      console.log('[MockSocket] Connected')
-    },
-
-    // Last 10 messages for polling simulation
-    getLastMessages: () => {
-      return messageHistory.slice(-10)
-    },
-
-    connected: true,
-    id: 'mock-socket-id',
-  }
-
-  return mockSocket
-}
-
-const useSocket = (roomId, userId) => {
+const useSocket = (isAdmin = false, roomId = null, userId = null) => {
   const [socket, setSocket] = useState(null)
-  const [connected, setConnected] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState(null)
   const [messages, setMessages] = useState([])
-  const [usingHttpFallback, setUsingHttpFallback] = useState(false)
-  const [isPolling, setIsPolling] = useState(false)
   const [connectionAttempts, setConnectionAttempts] = useState(0)
-  const pollIntervalRef = useRef(null)
-  const reconnectAttemptsRef = useRef(0)
-  const lastMessageIdRef = useRef(null)
-  const connectionTimerRef = useRef(null)
+
   const socketRef = useRef(null)
+  const heartbeatIntervalRef = useRef(null)
+  const reconnectTimeoutRef = useRef(null)
+  const mountedRef = useRef(true)
 
-  // Enhanced version with heartbeats and improved reconnection
-  const connectSocket = useCallback(() => {
-    if (!roomId && !userId) {
-      console.log('🔌 Cannot connect socket without roomId or userId')
-      return
+  const clearTimers = useCallback(() => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current)
+      heartbeatIntervalRef.current = null
     }
-
-    console.log('🔌 Attempting to connect to socket server...')
-    setConnectionAttempts(prev => prev + 1)
-
-    // Clear existing timers
-    if (connectionTimerRef.current) {
-      clearTimeout(connectionTimerRef.current)
-    }
-
-    // Configure socket with proper options
-    const socketInstance = io(API_URL, {
-      ...SOCKET_CONFIG,
-      query: { roomId, userId },
-      forceNew: connectionAttempts > 3,
-    })
-
-    socketRef.current = socketInstance
-
-    // Set up a heartbeat to detect silent disconnections
-    const heartbeatInterval = setInterval(() => {
-      if (socketInstance.connected) {
-        socketInstance.emit('heartbeat', { timestamp: Date.now() })
-      } else if (reconnectAttemptsRef.current < 15) {
-        console.log('💔 Heartbeat detected socket is not connected, attempting reconnect')
-        socketInstance.connect()
-        reconnectAttemptsRef.current += 1
-      } else {
-        console.log('💔 Heartbeat max reconnects reached, switching to HTTP fallback')
-        setUsingHttpFallback(true)
-        startPolling()
-      }
-    }, 10000) // Check every 10 seconds
-
-    socketInstance.on('connect', () => {
-      console.log('✅ Socket connected successfully')
-      setConnected(true)
-      setError(null)
-      reconnectAttemptsRef.current = 0
-      setConnectionAttempts(0)
-
-      // If we were using HTTP fallback, we can stop
-      if (usingHttpFallback) {
-        stopPolling()
-        setUsingHttpFallback(false)
-      }
-
-      // Join rooms/channels as needed
-      if (roomId) {
-        socketInstance.emit('join', { roomId, userId })
-      }
-    })
-
-    socketInstance.on('disconnect', reason => {
-      console.log('❌ Socket disconnected:', reason)
-      setConnected(false)
-
-      // If disconnected due to server problems, try to reconnect
-      if (reason === 'io server disconnect' || reason === 'transport close') {
-        // Set a timer to attempt reconnection
-        connectionTimerRef.current = setTimeout(() => {
-          console.log('🔄 Attempting to reconnect after server disconnect')
-          socketInstance.connect()
-        }, 2000)
-      }
-    })
-
-    socketInstance.on('error', err => {
-      console.error('🛑 Socket error:', err)
-      setError(err)
-
-      // If we've exceeded reconnection attempts, enable HTTP fallback
-      if (reconnectAttemptsRef.current >= 15) {
-        console.log('⚠️ Max reconnection attempts reached, switching to HTTP fallback')
-        setUsingHttpFallback(true)
-        startPolling()
-      } else {
-        reconnectAttemptsRef.current += 1
-      }
-    })
-
-    socketInstance.on('reconnect_attempt', attempt => {
-      console.log(`🔄 Reconnection attempt: ${attempt}`)
-      reconnectAttemptsRef.current = attempt
-    })
-
-    socketInstance.on('reconnect_failed', () => {
-      console.log('⚠️ Socket reconnection failed, switching to HTTP fallback')
-      setUsingHttpFallback(true)
-      startPolling()
-    })
-
-    socketInstance.on('message', message => {
-      console.log('📩 Received message via socket:', message)
-      // Receiving a message is proof of a working connection
-      setConnected(true)
-
-      setMessages(prevMessages => {
-        // Check if we already have this message
-        if (prevMessages.some(m => m.id === message.id)) {
-          return prevMessages
-        }
-
-        // Update lastMessageId for polling
-        if (message.id && (!lastMessageIdRef.current || message.id > lastMessageIdRef.current)) {
-          lastMessageIdRef.current = message.id
-        }
-
-        return [...prevMessages, message]
-      })
-    })
-
-    setSocket(socketInstance)
-
-    // Return cleanup function
-    return () => {
-      console.log('🔌 Cleaning up socket connection...')
-      clearInterval(heartbeatInterval)
-      if (connectionTimerRef.current) {
-        clearTimeout(connectionTimerRef.current)
-      }
-      socketInstance.disconnect()
-    }
-  }, [roomId, userId, connectionAttempts, usingHttpFallback])
-
-  // Create socket connection with reconnection logic
-  useEffect(() => {
-    const cleanup = connectSocket()
-
-    // Set up a reconnection check that will run even if the socket library fails
-    const reconnectTimer = setInterval(() => {
-      const socketInstance = socketRef.current
-
-      if (!socketInstance?.connected && !usingHttpFallback) {
-        console.log('🔄 Reconnection check: Socket not connected, attempting reconnect')
-        cleanup?.()
-        connectSocket()
-      }
-    }, 30000) // Check every 30 seconds
-
-    return () => {
-      clearInterval(reconnectTimer)
-      cleanup?.()
-    }
-  }, [connectSocket, roomId, userId, usingHttpFallback])
-
-  // HTTP fallback functions
-  const fetchMessagesHttp = useCallback(async () => {
-    if (!roomId) return
-
-    try {
-      const since = lastMessageIdRef.current ? `?since=${lastMessageIdRef.current}` : ''
-      console.log(`🔄 Polling for messages since ID: ${lastMessageIdRef.current || 'beginning'}`)
-
-      const response = await axios.get(`${API_URL}/api/support/messages/${roomId}${since}`)
-
-      if (response.data && Array.isArray(response.data)) {
-        console.log(`📥 Fetched ${response.data.length} messages via HTTP`)
-
-        const newMessages = response.data.filter(msg => {
-          // Filter out messages we already have
-          return !messages.some(m => m.id === msg.id)
-        })
-
-        if (newMessages.length > 0) {
-          console.log(`📨 Adding ${newMessages.length} new messages from HTTP polling`)
-
-          // Update last message ID for future polling
-          const maxId = Math.max(...newMessages.map(m => m.id))
-          if (maxId && (!lastMessageIdRef.current || maxId > lastMessageIdRef.current)) {
-            lastMessageIdRef.current = maxId
-          }
-
-          setMessages(prev => [...prev, ...newMessages])
-        }
-      }
-    } catch (err) {
-      console.error('❌ Error fetching messages via HTTP:', err)
-    }
-  }, [roomId, messages])
-
-  const sendMessageHttp = useCallback(
-    async messageContent => {
-      if (!roomId || !userId) return false
-
-      try {
-        console.log('📤 Sending message via HTTP fallback')
-        const response = await axios.post(`${API_URL}/api/support/message`, {
-          roomId,
-          userId,
-          content: messageContent,
-          timestamp: new Date().toISOString(),
-        })
-
-        if (response.data && response.data.success) {
-          console.log('✅ Message sent successfully via HTTP')
-
-          // Add the message to our local state
-          const sentMessage = response.data.message
-          setMessages(prev => {
-            // Avoid duplicates
-            if (prev.some(m => m.id === sentMessage.id)) {
-              return prev
-            }
-            return [...prev, sentMessage]
-          })
-
-          // Update lastMessageId if needed
-          if (
-            sentMessage.id &&
-            (!lastMessageIdRef.current || sentMessage.id > lastMessageIdRef.current)
-          ) {
-            lastMessageIdRef.current = sentMessage.id
-          }
-
-          return true
-        }
-        return false
-      } catch (err) {
-        console.error('❌ Error sending message via HTTP:', err)
-        return false
-      }
-    },
-    [roomId, userId]
-  )
-
-  // Start polling for messages as HTTP fallback
-  const startPolling = useCallback(() => {
-    if (isPolling) return
-
-    console.log('🔄 Starting HTTP polling for messages (every 30 seconds)')
-    setIsPolling(true)
-
-    // Initial fetch
-    fetchMessagesHttp()
-
-    // Set up interval for polling
-    pollIntervalRef.current = setInterval(() => {
-      fetchMessagesHttp()
-    }, 30000) // Poll every 30 seconds
-  }, [fetchMessagesHttp, isPolling])
-
-  // Stop polling
-  const stopPolling = useCallback(() => {
-    if (pollIntervalRef.current) {
-      console.log('⏹️ Stopping HTTP polling')
-      clearInterval(pollIntervalRef.current)
-      pollIntervalRef.current = null
-      setIsPolling(false)
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
     }
   }, [])
 
-  // Main function to send a message, will use socket or HTTP based on connection status
-  const sendMessage = useCallback(
-    async messageContent => {
-      if (!messageContent || !roomId || !userId) return false
+  const connectSocket = useCallback(() => {
+    if (!mountedRef.current) return
 
-      if (connected && socket && !usingHttpFallback) {
-        try {
-          console.log('📤 Sending message via socket')
-          socket.emit('message', {
-            roomId,
-            userId,
-            content: messageContent,
+    console.log('🔌 Initializing socket connection...')
+    if (socketRef.current) {
+      console.log('🧹 Cleaning up existing socket')
+      socketRef.current.removeAllListeners()
+      socketRef.current.disconnect()
+      socketRef.current = null
+    }
+
+    clearTimers()
+    setError(null)
+
+    try {
+      const socketInstance = io(API_URL, SOCKET_CONFIG)
+      socketRef.current = socketInstance
+      setSocket(socketInstance)
+
+      socketInstance.on('connect', () => {
+        if (!mountedRef.current) return
+        console.log('✅ Socket connected:', socketInstance.id)
+        setIsConnected(true)
+        setError(null)
+        setConnectionAttempts(0)
+
+        if (isAdmin) {
+          socketInstance.emit('join_admin', { userId })
+          console.log('[SOCKET][HOOK] Admin joined admin_room')
+          if (roomId) {
+            socketInstance.emit('join_chat', { caseId: roomId })
+            console.log('[SOCKET][HOOK] Admin joined room:', roomId)
+          }
+        } else if (roomId) {
+          socketInstance.emit('join_chat', { caseId: roomId })
+          console.log('[SOCKET][HOOK] User joined room:', roomId)
+        }
+
+        heartbeatIntervalRef.current = setInterval(() => {
+          if (socketInstance.connected && mountedRef.current) {
+            socketInstance.emit('heartbeat', {
+              timestamp: Date.now(),
+              userId,
+              isAdmin,
+            })
+          }
+        }, 25000)
+      })
+
+      socketInstance.on('new_message', message => {
+        if (!mountedRef.current) return
+        console.log('[SOCKET][HOOK] Received new_message:', message)
+        setMessages(prev => {
+          if (prev.some(m => m._id === message._id)) return prev
+          return [...prev, message]
+        })
+      })
+
+      // Enhanced socket event handling for chat acceptance
+      socketInstance.on('chat_accepted', data => {
+        console.log(`🔔 Chat accepted event received:`, data)
+
+        // For admin clients, update their UI
+        if (isAdmin) {
+          console.log('Admin received chat_accepted event, updating UI')
+        }
+      })
+
+      // Setup event handlers for broadcasting to clients
+      if (isAdmin) {
+        // When admin accepts a chat, broadcast to the specific chat room
+        socketInstance.on('admin_accept_chat', data => {
+          console.log(`🔔 Admin accepting chat:`, data)
+
+          // Broadcast to all users in this chat room
+          socketInstance.emit('chat_accepted', {
+            chatId: data.chatId,
+            adminId: data.adminId,
+            adminName: data.adminName || 'Admin',
+            timestamp: data.timestamp || new Date().toISOString(),
+            status: 'active',
+          })
+
+          // Also emit a status update event for the mobile app
+          socketInstance.emit('chat_status_change', {
+            chatId: data.chatId,
+            updates: {
+              status: 'active',
+              adminId: data.adminId,
+              isLive: true,
+              acceptedAt: data.timestamp || new Date().toISOString(),
+            },
+          })
+
+          // Send a system message to notify users
+          socketInstance.emit('new_message', {
+            _id: `system-${Date.now()}`,
+            chatId: data.chatId,
+            content: `An admin has joined the chat and is ready to assist you.`,
+            sender: {
+              role: 'system',
+              id: 'system',
+              name: 'System',
+            },
             timestamp: new Date().toISOString(),
           })
-          return true
-        } catch (err) {
-          console.error('❌ Error sending message via socket:', err)
-          // Try HTTP fallback on socket failure
-          return sendMessageHttp(messageContent)
-        }
-      } else {
-        // If we're in HTTP fallback mode or socket is not connected
-        return sendMessageHttp(messageContent)
+        })
       }
+
+      socketInstance.on('chat_closed', data => {
+        if (!mountedRef.current) return
+        console.log('[SOCKET][HOOK] Chat closed:', data)
+      })
+
+      socketInstance.on('admin_joined', data => {
+        if (!mountedRef.current) return
+        console.log('[SOCKET][HOOK] Admin room joined:', data)
+      })
+
+      socketInstance.on('disconnect', reason => {
+        if (!mountedRef.current) return
+        console.log('❌ Socket disconnected:', reason)
+        setIsConnected(false)
+        clearTimers()
+
+        const delay = Math.min(2000 * Math.pow(1.5, connectionAttempts), 15000)
+        reconnectTimeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            connectSocket()
+          }
+        }, delay)
+      })
+
+      socketInstance.on('connect_error', err => {
+        if (!mountedRef.current) return
+        console.error('🚨 Connection error:', err.message)
+        setIsConnected(false)
+        setError(err.message)
+        setConnectionAttempts(prev => prev + 1)
+
+        const delay = Math.min(2000 * Math.pow(1.5, connectionAttempts), 30000)
+        reconnectTimeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            connectSocket()
+          }
+        }, delay)
+      })
+    } catch (err) {
+      console.error('🚨 Socket initialization error:', err)
+      setError(err.message)
+      setIsConnected(false)
+      setTimeout(() => {
+        if (mountedRef.current) {
+          connectSocket()
+        }
+      }, 5000)
+    }
+  }, [isAdmin, roomId, userId, connectionAttempts, clearTimers])
+
+  useEffect(() => {
+    mountedRef.current = true
+    connectSocket()
+    return () => {
+      mountedRef.current = false
+      clearTimers()
+      if (socketRef.current) {
+        socketRef.current.removeAllListeners()
+        socketRef.current.disconnect()
+      }
+    }
+  }, [connectSocket])
+
+  const sendMessage = useCallback(
+    async messageContent => {
+      if (!messageContent || !roomId || !userId || !socketRef.current?.connected) {
+        console.error('❌ Cannot send message: missing parameters or not connected')
+        return false
+      }
+
+      const messageData = {
+        content: messageContent,
+        caseId: roomId,
+        userId,
+        sender: userId,
+        type: isAdmin ? 'ADMIN' : 'USER',
+        timestamp: new Date().toISOString(),
+        _id: `${Date.now()}-${Math.random()}`, // Temporary ID
+      }
+
+      socketRef.current.emit('chat_message', messageData)
+      setMessages(prev => [...prev, messageData]) // Optimistic update
+      return true
     },
-    [socket, connected, usingHttpFallback, sendMessageHttp, roomId, userId]
+    [roomId, userId, isAdmin]
   )
 
-  // Function to manually toggle HTTP fallback mode
-  const toggleHttpFallback = useCallback(() => {
-    setUsingHttpFallback(prev => {
-      const newValue = !prev
-      console.log('🔄 Manually toggled HTTP fallback mode:', newValue)
+  const reconnect = useCallback(() => {
+    console.log('🔄 Manual reconnection triggered')
+    connectSocket()
+  }, [connectSocket])
 
-      if (newValue) {
-        startPolling()
-      } else if (socket && socket.connected) {
-        stopPolling()
-      }
-
-      return newValue
-    })
-  }, [startPolling, stopPolling, socket])
+  const getConnectionStatus = useCallback(() => {
+    const socketInstance = socketRef.current
+    return {
+      isConnected: isConnected && socketInstance?.connected,
+      socketId: socketInstance?.id,
+      transport: socketInstance?.io?.engine?.transport?.name,
+      attempts: connectionAttempts,
+      error,
+    }
+  }, [isConnected, connectionAttempts, error])
 
   return {
-    socket,
-    connected,
+    socket: socketRef.current,
+    isConnected: isConnected && socketRef.current?.connected,
     sendMessage,
     messages,
-    usingHttpFallback,
-    toggleHttpFallback,
     error,
-    fetchMessages: fetchMessagesHttp,
-    startPolling,
-    stopPolling,
+    connectionAttempts,
+    reconnect,
+    getConnectionStatus,
   }
 }
 

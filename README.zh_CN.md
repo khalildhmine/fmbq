@@ -245,7 +245,7 @@
 	```
 6. 注册一个账户
 	```
-	http://localhost:3000/register
+	https://fmbq.vercel.app/register
 	```
 7. 创建帐户后，在数据库中找到您的帐户，并将root字段修改为true。role字段修改为admin，这将授予您访问所有管理仪表板功能的权限
 	```
@@ -258,7 +258,7 @@
 	db.users.update({name:"admin"},{$set:{role:"admin"}})
 	db.users.update({name:"admin"},{$set:{root:true}})
 	```
-	管理员入口：http://localhost:3000/admin
+	管理员入口：https://fmbq.vercel.app/admin
 8. 操作MongoDB，创建根分类
 	```
 	mongo

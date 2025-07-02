@@ -1,4 +1,5 @@
-import { connectDb } from '@/lib/db'
+// import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 import MaisonAdrar from '@/models/MaisonAdrar'
 
 export const maisonAdrarRepo = {
@@ -12,7 +13,7 @@ export const maisonAdrarRepo = {
     sortOrder = 'desc',
   } = {}) => {
     try {
-      await connectDb()
+      await connectToDatabase() // <-- FIX: use connectToDatabase, not connectDb
 
       console.log('Fetching perfumes with params:', { page, limit, search, type })
 

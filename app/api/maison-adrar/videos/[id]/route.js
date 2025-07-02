@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { connectDb } from '@/lib/db'
+// import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 import { isValidObjectId } from 'mongoose'
 import MaisonAdrarVideo from '@/models/MaisonAdrarVideo'
 import MaisonAdrar from '@/models/MaisonAdrar'
@@ -18,7 +19,7 @@ export async function GET(request, { params }) {
     }
 
     // Connect to database
-    await connectDb()
+    await connectToDatabase()
 
     // Fetch video
     const video = await MaisonAdrarVideo.findById(id)

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 import MaisonAdrarVideo from '@/models/MaisonAdrarVideo'
 
 export async function GET(request) {
@@ -44,7 +44,7 @@ export async function GET(request) {
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1
 
     // Connect to database
-    await connectDb()
+    await connectToDatabase()
 
     // Get total count for pagination
     const total = await MaisonAdrarVideo.countDocuments(filter)

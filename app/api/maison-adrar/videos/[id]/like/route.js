@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 import { verifyAuth } from '@/lib/auth'
 import MaisonAdrarVideo from '@/models/MaisonAdrarVideo'
 import VideoLike from '@/models/VideoLike'
@@ -39,7 +39,7 @@ export async function POST(request, { params }) {
     }
 
     // Connect to database
-    await connectDb()
+    await connectToDatabase()
 
     // Check if video exists
     const video = await MaisonAdrarVideo.findById(id)
@@ -125,7 +125,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Connect to database
-    await connectDb()
+    await connectToDatabase()
 
     // Check if video exists
     const video = await MaisonAdrarVideo.findById(id)
@@ -208,7 +208,7 @@ export async function GET(request, { params }) {
     }
 
     // Connect to database
-    await connectDb()
+    await connectToDatabase()
 
     // Check if video exists
     const video = await MaisonAdrarVideo.findById(id)

@@ -97,38 +97,21 @@ userSchema.virtual('activePushToken').get(function () {
   return this.pushToken || this.expoPushToken || null
 })
 
+// Apply the base plugin
+userSchema.plugin(basePlugin)
+
 // Pre-save middleware to sync tokens
 userSchema.pre('save', function (next) {
-  if (this.expoPushToken && !this.pushToken) {
+  if (this.isModified('expoPushToken') && !this.pushToken) {
     this.pushToken = this.expoPushToken
   }
-  if (this.pushToken && !this.expoPushToken) {
+  if (this.isModified('pushToken') && !this.expoPushToken) {
     this.expoPushToken = this.pushToken
   }
   next()
 })
 
-userSchema.plugin(basePlugin)
-
+// Ensure the model is only compiled once
 const User = mongoose.models.User || mongoose.model('User', userSchema)
-
-// Migration function to sync tokens
-export const migrateTokens = async () => {
-  const users = await User.find({
-    $or: [
-      { expoPushToken: { $exists: true, $ne: null } },
-      { pushToken: { $exists: true, $ne: null } },
-    ],
-  })
-
-  for (const user of users) {
-    const token = user.pushToken || user.expoPushToken
-    if (token) {
-      user.pushToken = token
-      user.expoPushToken = token
-      await user.save()
-    }
-  }
-}
 
 export default User

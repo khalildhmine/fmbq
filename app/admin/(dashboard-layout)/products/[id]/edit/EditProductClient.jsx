@@ -69,14 +69,18 @@ export default function EditProductClient({ id }) {
         discount: Number(data.discount || 0),
       }
 
-      setUpdateInfo(formattedData)
-      confirmUpdateModalHandlers.open()
+      // Directly call updateProduct instead of opening modal
+      await updateProduct({
+        id,
+        body: formattedData,
+      }).unwrap()
     } catch (error) {
-      console.error('Error formatting update data:', error)
-      toast.error(`Error preparing update: ${error.message}`)
+      console.error('Error updating product:', error)
+      toast.error(error?.data?.message || error?.message || 'Failed to update product')
     }
   }
 
+  // Restore this function:
   const onConfirmUpdate = async () => {
     try {
       await updateProduct({
@@ -142,6 +146,9 @@ export default function EditProductClient({ id }) {
     )
   }
 
+  // Get the actual product object
+  const product = response.data.product || response.data || response.product || response
+
   return (
     <>
       <HandleResponse error={errorUpdate} />
@@ -179,26 +186,26 @@ export default function EditProductClient({ id }) {
                   ID: <span className="font-mono text-xs">{id}</span>
                 </div>
 
-                {response.data.brand && (
+                {product.brand && (
                   <div className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm">
                     Brand:{' '}
-                    {typeof response.data.brand === 'object' && response.data.brand.name
-                      ? response.data.brand.name
-                      : typeof response.data.brand === 'string'
-                        ? response.data.brand
+                    {typeof product.brand === 'object' && product.brand.name
+                      ? product.brand.name
+                      : typeof product.brand === 'string'
+                        ? product.brand
                         : 'Unknown Brand'}
                   </div>
                 )}
 
                 <div className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-sm">
-                  Stock: {response.data.inStock || 0}
+                  Stock: {product.inStock || 0}
                 </div>
               </div>
             </div>
 
             <ProductsForm
               mode="edit"
-              selectedProduct={response.data}
+              selectedProduct={product}
               updateHandler={updateHandler}
               isLoadingUpdate={isLoadingUpdate}
             />

@@ -42,7 +42,7 @@ The notification system uses two complementary approaches to ensure administrato
 You can manually trigger a notification by sending a POST request to `/api/orders` with the appropriate data. For example:
 
 ```bash
-curl -X POST http://localhost:3000/api/orders \
+curl -X POST https://fmbq.vercel.app/api/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer test_token" \
   -d '{

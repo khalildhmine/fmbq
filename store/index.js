@@ -1,5 +1,5 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit'
-import { setupListeners } from '@reduxjs/toolkit/dist/query'
+import { setupListeners } from '@reduxjs/toolkit/query/react'
 
 //? Reducers
 import userReducer, { userLogin, userLogout } from './slices/user.slice'

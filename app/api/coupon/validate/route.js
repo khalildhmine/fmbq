@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
-import { connectDb } from '@/lib/db'
+// import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 import Coupon from '@/models/Coupon'
 
 export async function POST(req) {
   try {
-    await connectDb()
+    await connectToDatabase()
 
     const body = await req.json()
     console.log('Received coupon validation request:', body)

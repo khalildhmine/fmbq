@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 import { Server } from 'socket.io'
 
-let io
-
+// Prevent multiple Socket.IO servers in dev/hot-reload
 if (!global.io) {
   console.log('Initializing Socket.IO server...')
 
-  io = new Server({
+  const io = new Server({
     cors: {
       origin: '*',
       methods: ['GET', 'POST'],
@@ -19,8 +18,23 @@ if (!global.io) {
     pingInterval: 10000,
   })
 
+  // --- Track connected sockets by userId to prevent duplicate connections ---
+  const userSockets = {}
+
   io.on('connection', socket => {
     console.log('Client connected:', socket.id)
+
+    // Track userId if provided
+    const userId = socket.handshake.query.userId
+    if (userId) {
+      // Disconnect previous socket for this userId if exists
+      if (userSockets[userId]) {
+        try {
+          userSockets[userId].disconnect(true)
+        } catch {}
+      }
+      userSockets[userId] = socket
+    }
 
     // Join admin room if user is admin
     if (socket.handshake.query.role === 'admin') {
@@ -49,6 +63,10 @@ if (!global.io) {
 
     socket.on('disconnect', reason => {
       console.log('Client disconnected:', socket.id, 'Reason:', reason)
+      // Remove from userSockets if present
+      if (userId && userSockets[userId] && userSockets[userId].id === socket.id) {
+        delete userSockets[userId]
+      }
     })
 
     socket.on('error', error => {

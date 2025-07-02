@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Product } from '@/models'
-import { connectDb } from '@/lib/db'
+// import { connectDb } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 
 // GET handler to fetch products directly from MongoDB
 export async function GET(req) {
@@ -15,7 +16,7 @@ export async function GET(req) {
     console.log('⭐ Direct MongoDB query params:', { limit, page, skip })
 
     // Connect to MongoDB
-    await connectDb()
+    await connectToDatabase()
     console.log('⭐ Database connection successful')
 
     // Get all products with basic pagination

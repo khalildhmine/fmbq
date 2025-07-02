@@ -4,6 +4,8 @@ module.exports = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './store/**/*.{js,ts,jsx,tsx,mdx}',
+    './styles/**/*.{css,scss}',
   ],
   darkMode: ['class', 'class'],
   theme: {

@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { productRepo } from '@/helpers/db-repo/product-repo'
 import { connectToDatabase } from '@/helpers/db'
 import { Product } from '@/models'
+import mongoose from 'mongoose'
+
+const ObjectId = mongoose.Types.ObjectId
 
 // GET a single product by ID
 export async function GET(request, { params }) {
@@ -151,6 +154,13 @@ export async function PUT(request, context) {
         : body.categoryHierarchy,
     }
 
+    // --- Fix sizes: convert array of strings to array of objects ---
+    if (Array.isArray(updateData.sizes)) {
+      updateData.sizes = updateData.sizes.map(s =>
+        typeof s === 'string' ? { size: s, stock: 0 } : s
+      )
+    }
+
     const result = await Product.findByIdAndUpdate(
       new ObjectId(id),
       { $set: updateData },
@@ -255,5 +265,4 @@ export async function DELETE(request, context) {
   }
 }
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic' // Force dynamic rendering// Force dynamic rendering

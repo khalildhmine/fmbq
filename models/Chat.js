@@ -1,121 +1,116 @@
 import mongoose from 'mongoose'
 
-const messageSchema = new mongoose.Schema(
-  {
-    sender: {
-      id: String,
-      name: String,
-      role: {
-        type: String,
-        enum: ['user', 'admin', 'system'],
-        required: true,
-        default: 'user',
-      },
-    },
-    content: String,
-    type: { type: String, default: 'text' },
-    timestamp: { type: Date, default: Date.now },
-    replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'message' },
-    thread: [{ type: mongoose.Schema.Types.ObjectId, ref: 'message' }],
-    deliveryStatus: {
-      type: String,
-      enum: ['sent', 'delivered', 'read'],
-      default: 'sent',
-    },
-    metadata: {
-      device: String,
-      location: String,
-    },
-    readAt: Date,
-  },
-  {
-    timestamps: true,
-  }
-)
-
-// Add method to format messages
-messageSchema.methods.toJSON = function () {
-  const obj = this.toObject()
-  return {
-    ...obj,
-    isAdmin: obj.sender?.role === 'admin',
-  }
-}
-
-// Add virtual for message styling
-messageSchema.virtual('messageStyle').get(function () {
-  return {
-    isAdmin: this.sender?.role === 'admin',
-    alignment: this.sender?.role === 'admin' ? 'right' : 'left',
-    backgroundColor: this.sender?.role === 'admin' ? 'bg-blue-500' : 'bg-gray-100',
-    textColor: this.sender?.role === 'admin' ? 'text-white' : 'text-gray-900',
-  }
-})
-
-// Add a static method to find chat messages
-messageSchema.statics.findByRole = function (role) {
-  return this.find({ 'sender.role': role })
-}
-
 const chatSchema = new mongoose.Schema(
   {
-    chatId: String,
+    caseId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    supportReason: {
+      type: String,
+      enum: ['URGENT_DELIVERY', 'GENERAL_SUPPORT', 'RETURN_ITEM', 'PRODUCT_INQUIRY'],
+      required: true,
+    },
     status: {
       type: String,
-      enum: ['active', 'closed', 'pending'],
-      default: 'active',
+      enum: ['PENDING', 'ACTIVE', 'RESOLVED', 'CLOSED'],
+      default: 'PENDING',
+      index: true,
     },
-    // Support both old and new format
-    sender: {
-      id: String,
-      name: String,
-      role: String,
+    assignedAgent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
-    content: String,
-    participants: [
+    messages: [
       {
-        id: String,
-        name: String,
-        role: String,
+        sender: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          required: true,
+        },
+        content: {
+          type: String,
+          required: true,
+        },
+        type: {
+          type: String,
+          enum: ['TEXT', 'SYSTEM', 'IMAGE'],
+          default: 'TEXT',
+        },
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+        readBy: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+          },
+        ],
       },
     ],
-    messages: [messageSchema],
-    timestamp: { type: Date, default: Date.now },
-    lastActivity: { type: Date, default: Date.now },
-    messageCount: { type: Number, default: 0 },
-    lastMessage: {
-      content: String,
-      timestamp: Date,
-      sender: String,
+    metadata: {
+      createdAt: {
+        type: Date,
+        default: Date.now,
+        index: true,
+      },
+      lastActivity: {
+        type: Date,
+        default: Date.now,
+        index: true,
+      },
+      closedAt: Date,
+      resolution: String,
+      priority: {
+        type: String,
+        enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
+        default: 'MEDIUM',
+      },
     },
   },
   {
     timestamps: true,
-    strict: false, // Allow flexibility for migration
   }
 )
 
-// Update message count and last activity
+// Middleware to update lastActivity on new messages
 chatSchema.pre('save', function (next) {
   if (this.isModified('messages')) {
-    this.messageCount = this.messages.length
-    this.lastActivity = new Date()
-    const lastMsg = this.messages[this.messages.length - 1]
-    if (lastMsg) {
-      this.lastMessage = {
-        content: lastMsg.content,
-        timestamp: lastMsg.timestamp,
-        sender: lastMsg.sender.role,
-      }
-    }
+    this.metadata.lastActivity = new Date()
   }
   next()
 })
 
-// Add indexes
-chatSchema.index({ timestamp: -1 })
-chatSchema.index({ 'sender.id': 1 })
-chatSchema.index({ chatId: 1 })
+// Generate a unique case ID
+chatSchema.pre('save', async function (next) {
+  if (this.isNew) {
+    const date = new Date()
+    const year = date.getFullYear().toString().slice(-2)
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
 
-const Chat = mongoose.models.chat || mongoose.model('chat', chatSchema)
+    // Get count of chats created today for sequential numbering
+    const todayStart = new Date(date.setHours(0, 0, 0, 0))
+    const count = await this.constructor.countDocuments({
+      'metadata.createdAt': { $gte: todayStart },
+    })
+
+    // Format: SUP-YYMMDD-XXXX (e.g., SUP-230915-0001)
+    this.caseId = `SUP-${year}${month}${day}-${(count + 1).toString().padStart(4, '0')}`
+  }
+  next()
+})
+
+const Chat = mongoose.models.Chat || mongoose.model('Chat', chatSchema)
+
 export default Chat

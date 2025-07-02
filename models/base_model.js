@@ -27,5 +27,4 @@ export default function basePlugin(schema) {
   }
 }
 
-// Clear existing models to prevent recompilation issues
-mongoose.models = {}
+

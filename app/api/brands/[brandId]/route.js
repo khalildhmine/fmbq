@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { connectToDatabase } from '@/helpers/db'
+import { connectToDatabase } from '@/lib/mongoose'
 import { Brand } from '@/models'
 import mongoose from 'mongoose'
 
@@ -10,31 +10,41 @@ export const revalidate = 0
 export async function GET(request, { params }) {
   try {
     await connectToDatabase()
-    const brandId = params.brandId
 
-    // Check if brandId is a valid ObjectId
-    if (!mongoose.Types.ObjectId.isValid(brandId)) {
-      return Response.json({ success: false, message: 'Invalid brand id' }, { status: 400 })
-    }
-
+    // Properly await and validate the brandId
+    const brandId = await params.brandId
     if (!brandId) {
-      return NextResponse.json({ success: false, message: 'Brand ID is required' }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Brand ID is required',
+        },
+        { status: 400 }
+      )
     }
 
     const brand = await Brand.findById(brandId).lean()
 
     if (!brand) {
-      return NextResponse.json({ success: false, message: 'Brand not found' }, { status: 404 })
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Brand not found',
+        },
+        { status: 404 }
+      )
     }
 
-    return NextResponse.json({ success: true, data: brand })
+    return NextResponse.json({
+      success: true,
+      data: brand,
+    })
   } catch (error) {
     console.error('Error fetching brand:', error)
     return NextResponse.json(
       {
         success: false,
-        message: 'Failed to fetch brand',
-        error: error.message,
+        message: error.message || 'Failed to fetch brand',
       },
       { status: 500 }
     )

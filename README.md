@@ -211,7 +211,7 @@ functionality and responsibilities, making it easier for team members to underst
 6. Register an account:
 
     ```
-    http://localhost:3000/register
+    https://fmbq.vercel.app/register
     ```
 
 7. After creating an account, find your account in the database and modify the `root` field to true and the `role` field to admin. This grants you access to all admin dashboard features:
@@ -226,7 +226,7 @@ functionality and responsibilities, making it easier for team members to underst
     db.users.update({name:"admin"},{$set:{root:true}})
     ```
 
-    Administrator entrance: http://localhost:3000/admin
+    Administrator entrance: https://fmbq.vercel.app/admin
 
 8. In MongoDB, create the root category:
 

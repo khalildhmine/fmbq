@@ -4,7 +4,7 @@ import { setJson, errorHandler, getQuery } from './api-handler'
 
 const api = createApi({
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://fmbq.vercel.app',
     credentials: 'include',
     prepareHeaders: (headers, { getState }) => {
       const token = getState()?.auth?.token

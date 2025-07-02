@@ -451,12 +451,53 @@ export async function GET(req) {
       ]
     }
 
-    // Category and brand filters
-    const category = searchParams.get('category')
-    if (category) query.category = category
+    // Category filter - handle both single category and array of categories
+    const categories = searchParams.get('categories')
+    if (categories) {
+      const categoryArray = categories.split(',').filter(Boolean)
+      if (categoryArray.length > 0) {
+        // Convert string IDs to ObjectId
+        const categoryObjectIds = categoryArray.map(id => new ObjectId(id))
 
-    const brand = searchParams.get('brand')
-    if (brand) query.brand = brand
+        // Debug log
+        console.log('Category IDs:', categoryArray)
+        console.log('Category ObjectIds:', categoryObjectIds)
+
+        // First, let's find products directly by category ID
+        const productsWithCategory = await Product.find({
+          category: { $in: categoryObjectIds },
+        }).lean()
+        console.log('Products found by direct category:', productsWithCategory.length)
+
+        query.$or = [
+          { category: { $in: categoryObjectIds } },
+          { 'categoryHierarchy.mainCategory': { $in: categoryObjectIds } },
+          { 'categoryHierarchy.subCategory': { $in: categoryObjectIds } },
+        ]
+      }
+    }
+
+    // Brand filter - handle both single brand and array of brands
+    const brands = searchParams.get('brands')
+    if (brands) {
+      const brandArray = brands.split(',').filter(Boolean)
+      if (brandArray.length > 0) {
+        // Convert string IDs to ObjectId
+        const brandObjectIds = brandArray.map(id => new ObjectId(id))
+
+        // Debug log
+        console.log('Brand IDs:', brandArray)
+        console.log('Brand ObjectIds:', brandObjectIds)
+
+        // First, let's find products directly by brand ID
+        const productsWithBrand = await Product.find({
+          brand: { $in: brandObjectIds },
+        }).lean()
+        console.log('Products found by brand:', productsWithBrand.length)
+
+        query.brand = { $in: brandObjectIds }
+      }
+    }
 
     // Price range
     const price_min = searchParams.get('price_min')
@@ -470,18 +511,24 @@ export async function GET(req) {
     // Colors and sizes
     const colors = searchParams.get('colors')
     if (colors) {
-      query.colors = { $in: colors.split(',') }
+      const colorArray = colors.split(',').filter(Boolean)
+      if (colorArray.length > 0) {
+        query['colors.name'] = { $in: colorArray }
+      }
     }
 
     const sizes = searchParams.get('sizes')
     if (sizes) {
-      query.sizes = { $in: sizes.split(',') }
+      const sizeArray = sizes.split(',').filter(Boolean)
+      if (sizeArray.length > 0) {
+        query['sizes.size'] = { $in: sizeArray }
+      }
     }
 
     // Boolean filters
     const inStock = searchParams.get('inStock')
     if (inStock === 'false') {
-      delete query.inStock // Remove the default inStock filter
+      delete query.inStock
     }
 
     const discount = searchParams.get('discount')
@@ -492,11 +539,38 @@ export async function GET(req) {
     // Sorting
     let sort = {}
     const sortField = searchParams.get('sort') || 'createdAt'
-    const order = searchParams.get('order') || 'desc'
-    sort[sortField] = order === 'desc' ? -1 : 1
+    switch (sortField) {
+      case 'price_asc':
+        sort.price = 1
+        break
+      case 'price_desc':
+        sort.price = -1
+        break
+      case 'sold_desc':
+        sort.sold = -1
+        break
+      case 'popular':
+        sort.sold = -1
+        break
+      case 'latest':
+      default:
+        sort.createdAt = -1
+    }
 
-    console.log('Query:', JSON.stringify(query, null, 2))
+    console.log('Final Query:', JSON.stringify(query, null, 2))
     console.log('Sort:', sort)
+
+    // Let's first check what products exist in the database
+    const sampleProducts = await Product.find({}).limit(5).lean()
+    console.log(
+      'Sample product category and brand fields:',
+      sampleProducts.map(p => ({
+        _id: p._id,
+        category: p.category,
+        categoryHierarchy: p.categoryHierarchy,
+        brand: p.brand,
+      }))
+    )
 
     // Execute query
     const [products, total] = await Promise.all([
