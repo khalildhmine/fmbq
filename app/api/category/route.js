@@ -36,53 +36,33 @@ export async function GET(req) {
     console.log(`Category API: Found ${categories.length} categories matching query`)
 
     // Get all categories for building hierarchies if needed
+    // Add "Tous" as a virtual category
     const allCategories = await Category.find({ active: true })
-    const allCategoriesObj = allCategories.map(cat => cat.toObject())
-
-    // Function to find children for a category
-    function buildCategoryTree(categoryId) {
-      const children = allCategoriesObj.filter(
-        c => c.parent && c.parent.toString() === categoryId.toString()
-      )
-      return children.map(child => ({
-        ...child,
-        children: buildCategoryTree(child._id),
-      }))
+    const level1Categories = allCategories.filter(cat => cat.level === 1)
+    
+    const tousCategory = {
+      _id: 'tous',
+      name: 'Tous',
+      level: 0,
+      parent: null,
+      isNew: false,
+      active: true,
+      childrenCount: level1Categories.length
     }
 
-    // Build category tree if no specific query
-    let categoryTree = []
-    if (Object.keys(query).length === 1 && query.active === true) {
-      // Only has the default active filter
-      // Get root categories
-      const rootCategories = allCategoriesObj.filter(c => !c.parent)
-      categoryTree = rootCategories.map(root => ({
-        ...root,
-        children: buildCategoryTree(root._id),
-      }))
-    }
+    // Add Tous to the categories array
+    const categoriesWithTous = [tousCategory, ...categories.map(cat => cat.toObject())]
 
-    // Return appropriate response based on query
-    if (Object.keys(query).length > 1 || query.active !== true) {
-      return NextResponse.json(
-        {
-          success: true,
-          data: categories.map(cat => cat.toObject()),
-        },
-        { status: 200 }
-      )
-    } else {
-      return NextResponse.json(
-        {
-          success: true,
-          data: {
-            categories: allCategoriesObj,
-            categoryTree,
-          },
-        },
-        { status: 200 }
-      )
-    }
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          categories: categoriesWithTous,
+          categoryTree: categoryTree
+        }
+      },
+      { status: 200 }
+    )
   } catch (error) {
     console.error('Category API error:', error)
     return NextResponse.json(

@@ -6,20 +6,19 @@ import VideoLike from '@/models/VideoLike'
 import { isValidObjectId } from 'mongoose'
 
 // POST endpoint to like a video (requires authentication)
-export async function POST(request, { params }) {
+export async function POST(request, context) {
   try {
-    const { id } = await params // Add await here
+    const params = await context.params
+    const id = params.id
 
     // Verify user authentication
     const authResult = await verifyAuth(request)
-
     if (!authResult.success) {
       return NextResponse.json(
         { success: false, message: 'Authentication required' },
         { status: 401 }
       )
     }
-
     const user = authResult.user
 
     // Parse request body to get userId (if provided in request body)
@@ -38,7 +37,7 @@ export async function POST(request, { params }) {
       )
     }
 
-    // Connect to database
+    // Connect to DB
     await connectToDatabase()
 
     // Check if video exists
@@ -47,45 +46,49 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, message: 'Video not found' }, { status: 404 })
     }
 
-    // Check if the user has already liked this video
-    const existingLike = await VideoLike.findOne({ videoId: id, userId: userId })
+    // Check if already liked
+    const existingLike = await VideoLike.findOne({ video: id, user: userId })
     if (existingLike) {
+      // Count total likes
+      const likes = await VideoLike.countDocuments({ video: id })
       return NextResponse.json(
         {
           success: false,
           message: 'You have already liked this video',
-          data: { likes: video.likes, alreadyLiked: true },
+          data: { alreadyLiked: true, likes },
         },
         { status: 400 }
       )
     }
 
-    // Create a new like record
-    const newLike = new VideoLike({
-      videoId: id,
-      userId: userId,
-    })
-    await newLike.save()
+    // Fix: Use correct field names for VideoLike model (video, user)
+    await VideoLike.create({ video: id, user: userId })
 
-    // Increment the video's like count
-    const updatedVideo = await MaisonAdrarVideo.findByIdAndUpdate(
-      id,
-      { $inc: { likes: 1 } },
-      { new: true }
-    )
+    // Count total likes after like
+    const likes = await VideoLike.countDocuments({ video: id })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Video liked successfully',
-      data: {
-        likes: updatedVideo.likes,
-        alreadyLiked: true,
-      },
-    })
-  } catch (error) {
-    console.error('Error liking video:', error)
+    // Optionally update video.likes field
+    video.likes = likes
+    await video.save()
+
     return NextResponse.json(
-      { success: false, message: 'Failed to like video', error: error.message },
+      {
+        success: true,
+        message: 'Video liked successfully',
+        data: { alreadyLiked: false, likes },
+      },
+      { status: 200 }
+    )
+  } catch (error) {
+    // Show validation errors for debugging
+    console.error('Error in like video API:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Server error',
+        error: error?.message,
+        validation: error?.errors || undefined,
+      },
       { status: 500 }
     )
   }

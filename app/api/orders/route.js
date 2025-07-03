@@ -98,3 +98,45 @@ export async function GET(request) {
     )
   }
 }
+
+// Only ONE POST export allowed!
+export async function POST(request) {
+  let authResult
+
+  try {
+    // Verify auth first
+    authResult = await verifyAuth(request)
+    if (!authResult.success) {
+      return NextResponse.json({ success: false, message: 'Unauthorized access' }, { status: 401 })
+    }
+
+    const { userId, products, totalPrice } = await request.json()
+
+    // Connect to database
+    await connectToDatabase()
+
+    // Create a new order
+    const order = new Order({
+      user: userId,
+      products,
+      totalPrice,
+      createdAt: new Date(),
+    })
+
+    // Save the order to the database
+    await order.save()
+
+    console.log('Order created:', order)
+
+    return NextResponse.json({ success: true, data: order }, { status: 201 })
+  } catch (error) {
+    console.error('Error creating order:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        message: error.message || 'Internal server error',
+      },
+      { status: 500 }
+    )
+  }
+}

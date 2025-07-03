@@ -1,6 +1,7 @@
 import joi from 'joi'
 import Wishlist from '@/models/Wishlist'
-import { Product } from '@/models'
+import mongoose from 'mongoose'
+import Product from '@/models/Product' // <-- Ensure Product model is imported and registered
 import { apiHandler, setJson } from '@/helpers/api/api-handler'
 
 const getWishlist = apiHandler(
@@ -17,6 +18,11 @@ const getWishlist = apiHandler(
           message: 'ok',
           data: [],
         })
+      }
+
+      // Before populating 'product', ensure Product model is registered:
+      if (!mongoose.models.Product) {
+        mongoose.model('Product', Product.schema)
       }
 
       const wishlistItems = await Wishlist.find({
@@ -61,6 +67,11 @@ const addToWishlist = apiHandler(
       const { productId } = await req.json()
 
       console.log('Add to wishlist:', { userId, productId })
+
+      // Before using Product in any population or reference, ensure it's registered:
+      if (!mongoose.models.Product) {
+        mongoose.model('Product', Product.schema)
+      }
 
       const existing = await Wishlist.findOne({
         user: userId,

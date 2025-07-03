@@ -326,295 +326,196 @@ const getProductsByCategories = apiHandler(async req => {
 function buildProductFilter(query) {
   const filter = { inStock: { $gt: 0 } }
 
-  // Price range
+  // Handle categories
+  if (query.categories) {
+    const categoryIds = query.categories.split(',')
+    filter.category = { $in: categoryIds }
+  }
+
+  // Handle brands
+  if (query.brands) {
+    const brandIds = query.brands.split(',')
+    filter.brand = { $in: brandIds }
+  }
+
+  // Handle colors
+  if (query.colors) {
+    const colorNames = query.colors.split(',')
+    filter['colors.name'] = { $in: colorNames }
+  }
+
+  // Handle sizes
+  if (query.sizes) {
+    const sizeValues = query.sizes.split(',')
+    filter['sizes.size'] = { $in: sizeValues }
+  }
+
+  // Handle price range
   if (query.price_min || query.price_max) {
     filter.price = {}
     if (query.price_min) filter.price.$gte = Number(query.price_min)
     if (query.price_max) filter.price.$lte = Number(query.price_max)
   }
 
-  // Brand
-  if (query.brand) {
-    filter.brand = query.brand
-  }
-
-  // Colors (support both name and hashCode, and arrays)
-  if (query.colors) {
-    let colors = query.colors
-    if (typeof colors === 'string') {
-      try {
-        colors = JSON.parse(colors)
-      } catch {
-        // Split on comma, then trim and filter out empty/invalid
-        colors = colors
-          .split(',')
-          .map(c => c.trim())
-          .filter(Boolean)
-          // Only allow single words (no spaces) to avoid "Pink gray" bug
-          .filter(c => !/\s/.test(c))
-      }
-    }
-    if (Array.isArray(colors)) {
-      if (colors.length && colors[0].startsWith && colors[0].startsWith('#')) {
-        filter['colors.hashCode'] = { $in: colors }
-      } else {
-        filter['colors.name'] = { $in: colors }
-      }
-    } else if (typeof colors === 'string' && colors.length > 0) {
-      // Convert single string to array for $in, only if no spaces
-      if (!/\s/.test(colors)) {
-        if (colors.startsWith('#')) {
-          filter['colors.hashCode'] = { $in: [colors] }
-        } else {
-          filter['colors.name'] = { $in: [colors] }
-        }
-      }
-    }
-  }
-
-  // Sizes (ALWAYS use sizes.size, never sizes directly)
-  if (query.sizes) {
-    let sizes = query.sizes
-    if (typeof sizes === 'string') {
-      try {
-        sizes = JSON.parse(sizes)
-      } catch {
-        sizes = sizes
-          .split(',')
-          .map(s => s.trim())
-          .filter(Boolean)
-          .filter(s => !/\s/.test(s))
-      }
-    }
-    if (Array.isArray(sizes)) {
-      filter['sizes.size'] = { $in: sizes }
-    } else if (typeof sizes === 'string' && sizes.length > 0 && !/\s/.test(sizes)) {
-      filter['sizes.size'] = { $in: [sizes] }
-    }
-  }
-
-  // On Sale (discount > 0)
-  if (query.discount === 'true' || query.discount === true) {
+  // Handle discount
+  if (query.discount === 'true') {
     filter.discount = { $gt: 0 }
   }
 
-  // In Stock (inStock > 0) is already handled above
-
-  // Gender
-  if (query.gender) {
-    filter.gender = query.gender
-  }
-
-  // Category
-  if (query.category) {
-    filter.$or = [
-      { 'categoryHierarchy.mainCategory': query.category },
-      { 'categoryHierarchy.subCategory': query.category },
-      { category: query.category },
-    ]
-  }
-
-  // Search (text or regex)
-  if (query.search) {
-    filter.$or = [
-      { name: { $regex: query.search, $options: 'i' } },
-      { title: { $regex: query.search, $options: 'i' } },
-      { description: { $regex: query.search, $options: 'i' } },
-    ]
+  // Handle inStock
+  if (query.inStock === 'true') {
+    filter.inStock = { $gt: 0 }
   }
 
   return filter
 }
 
-export async function GET(req) {
+export async function GET(request) {
   try {
-    await connectToDatabase()
-
-    const { searchParams } = new URL(req.url)
-
-    // Build query object
-    const query = {
-      inStock: { $gt: 0 }, // Only show products with stock by default
-    }
-
-    // Pagination
+    const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page')) || 1
     const limit = parseInt(searchParams.get('limit')) || 20
-    const skip = (page - 1) * limit
+    const sort = searchParams.get('sort') || 'latest'
 
-    // Search
-    const search = searchParams.get('search')
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-      ]
-    }
+    // Build filter
+    const filter = buildProductFilter(searchParams)
 
-    // Category filter - handle both single category and array of categories
-    const categories = searchParams.get('categories')
-    if (categories) {
-      const categoryArray = categories.split(',').filter(Boolean)
-      if (categoryArray.length > 0) {
-        // Convert string IDs to ObjectId
-        const categoryObjectIds = categoryArray.map(id => new ObjectId(id))
-
-        // Debug log
-        console.log('Category IDs:', categoryArray)
-        console.log('Category ObjectIds:', categoryObjectIds)
-
-        // First, let's find products directly by category ID
-        const productsWithCategory = await Product.find({
-          category: { $in: categoryObjectIds },
-        }).lean()
-        console.log('Products found by direct category:', productsWithCategory.length)
-
-        query.$or = [
-          { category: { $in: categoryObjectIds } },
-          { 'categoryHierarchy.mainCategory': { $in: categoryObjectIds } },
-          { 'categoryHierarchy.subCategory': { $in: categoryObjectIds } },
-        ]
-      }
-    }
-
-    // Brand filter - handle both single brand and array of brands
-    const brands = searchParams.get('brands')
-    if (brands) {
-      const brandArray = brands.split(',').filter(Boolean)
-      if (brandArray.length > 0) {
-        // Convert string IDs to ObjectId
-        const brandObjectIds = brandArray.map(id => new ObjectId(id))
-
-        // Debug log
-        console.log('Brand IDs:', brandArray)
-        console.log('Brand ObjectIds:', brandObjectIds)
-
-        // First, let's find products directly by brand ID
-        const productsWithBrand = await Product.find({
-          brand: { $in: brandObjectIds },
-        }).lean()
-        console.log('Products found by brand:', productsWithBrand.length)
-
-        query.brand = { $in: brandObjectIds }
-      }
-    }
-
-    // Price range
-    const price_min = searchParams.get('price_min')
-    const price_max = searchParams.get('price_max')
-    if (price_min || price_max) {
-      query.price = {}
-      if (price_min) query.price.$gte = parseFloat(price_min)
-      if (price_max) query.price.$lte = parseFloat(price_max)
-    }
-
-    // Colors and sizes
-    const colors = searchParams.get('colors')
-    if (colors) {
-      const colorArray = colors.split(',').filter(Boolean)
-      if (colorArray.length > 0) {
-        query['colors.name'] = { $in: colorArray }
-      }
-    }
-
-    const sizes = searchParams.get('sizes')
-    if (sizes) {
-      const sizeArray = sizes.split(',').filter(Boolean)
-      if (sizeArray.length > 0) {
-        query['sizes.size'] = { $in: sizeArray }
-      }
-    }
-
-    // Boolean filters
-    const inStock = searchParams.get('inStock')
-    if (inStock === 'false') {
-      delete query.inStock
-    }
-
-    const discount = searchParams.get('discount')
-    if (discount === 'true') {
-      query.discount = { $gt: 0 }
-    }
-
-    // Sorting
-    let sort = {}
-    const sortField = searchParams.get('sort') || 'createdAt'
-    switch (sortField) {
+    // Build sort options
+    const sortOptions = {}
+    switch (sort) {
       case 'price_asc':
-        sort.price = 1
+        sortOptions.price = 1
         break
       case 'price_desc':
-        sort.price = -1
-        break
-      case 'sold_desc':
-        sort.sold = -1
-        break
-      case 'popular':
-        sort.sold = -1
+        sortOptions.price = -1
         break
       case 'latest':
+        sortOptions.createdAt = -1
+        break
       default:
-        sort.createdAt = -1
+        sortOptions.createdAt = -1
     }
 
-    console.log('Final Query:', JSON.stringify(query, null, 2))
-    console.log('Sort:', sort)
+    const skip = (page - 1) * limit
 
-    // Let's first check what products exist in the database
-    const sampleProducts = await Product.find({}).limit(5).lean()
-    console.log(
-      'Sample product category and brand fields:',
-      sampleProducts.map(p => ({
-        _id: p._id,
-        category: p.category,
-        categoryHierarchy: p.categoryHierarchy,
-        brand: p.brand,
-      }))
-    )
+    // Get products with filters
+    const products = await Product.find(filter)
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limit)
+      .populate('brand')
+      .lean()
 
-    // Execute query
-    const [products, total] = await Promise.all([
-      Product.find(query)
-        .sort(sort)
-        .skip(skip)
-        .limit(limit)
-        .populate('brand', 'name logo')
-        .populate('category', 'name')
-        .lean(),
-      Product.countDocuments(query),
-    ])
+    // Get total count
+    const total = await Product.countDocuments(filter)
 
-    console.log(`Found ${products.length} products out of ${total} total`)
-
-    // Calculate pagination info
-    const totalPages = Math.ceil(total / limit)
-    const hasNextPage = page < totalPages
-    const hasPrevPage = page > 1
+    // Get facets
+    const facets = await getFacets(filter)
 
     return NextResponse.json({
       success: true,
       data: {
         products,
-        pagination: {
-          total,
-          page,
-          limit,
-          totalPages,
-          hasNextPage,
-          hasPrevPage,
-        },
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+        facets,
       },
     })
   } catch (error) {
-    console.error('Error in products API:', error)
+    console.error('Search API Error:', error)
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to fetch products',
-        message: error.message,
+        message: 'Failed to search products',
       },
       { status: 500 }
     )
+  }
+}
+
+async function getFacets(baseFilter) {
+  const [colorFacets, sizeFacets, categoryFacets, brandFacets, priceRange] = await Promise.all([
+    // Get color facets
+    Product.aggregate([
+      { $match: baseFilter },
+      { $unwind: '$colors' },
+      {
+        $group: {
+          _id: { name: '$colors.name', hashCode: '$colors.hashCode' },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          name: '$_id.name',
+          hashCode: '$_id.hashCode',
+          count: 1,
+        },
+      },
+    ]),
+
+    // Get size facets
+    Product.aggregate([
+      { $match: baseFilter },
+      { $unwind: '$sizes' },
+      {
+        $group: {
+          _id: '$sizes.size',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          size: '$_id',
+          count: 1,
+        },
+      },
+    ]),
+
+    // Get category facets
+    Product.aggregate([
+      { $match: baseFilter },
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+
+    // Get brand facets
+    Product.aggregate([
+      { $match: baseFilter },
+      {
+        $group: {
+          _id: '$brand',
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+
+    // Get price range
+    Product.aggregate([
+      { $match: baseFilter },
+      {
+        $group: {
+          _id: null,
+          min: { $min: '$price' },
+          max: { $max: '$price' },
+        },
+      },
+    ]),
+  ])
+
+  return {
+    colors: colorFacets,
+    sizes: sizeFacets,
+    categories: categoryFacets,
+    brands: brandFacets,
+    priceRange: priceRange[0] || { min: 0, max: 0 },
   }
 }
 
@@ -686,3 +587,16 @@ export async function POST(request) {
 }
 
 export const dynamic = 'force-dynamic'
+
+// When parsing the categories filter from the query params, make sure you convert all category IDs to strings before building the MongoDB query.
+// This ensures that both string and ObjectId values in your product documents will match correctly.
+
+const parseCategoryIds = ids =>
+  Array.isArray(ids)
+    ? ids.map(id => (id && typeof id === 'string' ? id : String(id))).filter(Boolean)
+    : typeof ids === 'string'
+      ? ids
+          .split(',')
+          .map(id => id.trim())
+          .filter(Boolean)
+      : []

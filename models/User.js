@@ -86,6 +86,30 @@ const userSchema = new mongoose.Schema(
         default: null,
       },
     },
+    // Add coins field for reward points
+    coins: {
+      type: Number,
+      default: 0,
+    },
+    // Add coinsHistory to track changes
+    coinsHistory: [
+      {
+        amount: Number,
+        type: {
+          type: String,
+          enum: ['earned', 'spent', 'expired', 'adjusted'],
+        },
+        orderId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Order',
+        },
+        description: String,
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
@@ -110,6 +134,21 @@ userSchema.pre('save', function (next) {
   }
   next()
 })
+
+// Add a method to update coins when an order is placed
+userSchema.methods.redeemCoins = async function (amount, orderId) {
+  if (!amount || amount <= 0) return
+  this.coins = Math.max(0, (this.coins || 0) - amount)
+  this.coinsHistory = this.coinsHistory || []
+  this.coinsHistory.push({
+    amount: -Math.abs(amount),
+    type: 'spent',
+    orderId,
+    description: 'Coins redeemed for order',
+    createdAt: new Date(),
+  })
+  await this.save()
+}
 
 // Ensure the model is only compiled once
 const User = mongoose.models.User || mongoose.model('User', userSchema)

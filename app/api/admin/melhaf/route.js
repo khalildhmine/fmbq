@@ -58,6 +58,7 @@ export async function GET(req) {
     const limit = parseInt(searchParams.get('limit')) || 10
     const search = searchParams.get('search') || ''
     const type = searchParams.get('type') || ''
+    const hasDiscount = searchParams.get('hasDiscount') === 'true'
 
     let query = {}
 
@@ -67,6 +68,10 @@ export async function GET(req) {
 
     if (type) {
       query.type = type
+    }
+
+    if (hasDiscount) {
+      query.discount = { $exists: true, $gt: 0 }
     }
 
     console.log('MongoDB query:', query)

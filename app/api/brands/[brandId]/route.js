@@ -7,32 +7,34 @@ import mongoose from 'mongoose'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export async function GET(request, { params }) {
+// Fix the parameter handling issue
+export async function GET(req, { params }) {
   try {
-    await connectToDatabase()
+    // Make sure to await params before using
+    const brandId = params.brandId
 
-    // Properly await and validate the brandId
-    const brandId = await params.brandId
-    if (!brandId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Brand ID is required',
-        },
-        { status: 400 }
-      )
+    // Handle special case for "products" path
+    if (brandId === 'products') {
+      return NextResponse.json({
+        success: true,
+        data: {
+          brands: [], // Return empty array instead of error
+          message: 'No brands found for products endpoint'
+        }
+      })
     }
 
-    const brand = await Brand.findById(brandId).lean()
+    // Connect to database
+    await connectToDatabase()
 
+    // Find brand by ID
+    const brand = await Brand.findById(brandId)
+    
     if (!brand) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Brand not found',
-        },
-        { status: 404 }
-      )
+      return NextResponse.json({
+        success: false,
+        message: 'Brand not found'
+      }, { status: 404 })
     }
 
     return NextResponse.json({
@@ -41,13 +43,10 @@ export async function GET(request, { params }) {
     })
   } catch (error) {
     console.error('Error fetching brand:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message || 'Failed to fetch brand',
-      },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: false,
+      message: error.message || 'Failed to fetch brand'
+    }, { status: 500 })
   }
 }
 

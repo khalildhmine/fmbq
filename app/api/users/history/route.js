@@ -1,114 +1,127 @@
-import { db } from '@/helpers'
-import { History, Product } from '@/models'
-import { apiHandler } from '@/helpers/api'
-import { setJson } from '@/helpers/api'
+import { NextResponse } from 'next/server'
+import { connectToDatabase } from '@/helpers/db'
+import { History } from '@/models'
+import jwt from 'jsonwebtoken'
 
-// Get user's history
-export const GET = apiHandler(async req => {
+// Create a function to get user from token since getUserFromToken is not available
+async function getUserFromToken(req) {
   try {
-    const userId = req.headers.get('userId')
-
-    // If no userId, return empty history (client will use local storage)
-    if (!userId) {
-      return setJson({
-        code: 200,
-        message: 'No user ID provided, using local storage only',
-        data: [],
-      })
+    const token = req.cookies.get('token')?.value || 
+                  req.headers.get('authorization')?.replace('Bearer ', '')
+    
+    if (!token) {
+      return null
     }
+    
+    const decoded = jwt.verify(token, process.env.NEXT_PUBLIC_ACCESS_TOKEN_SECRET)
+    
+    if (!decoded || !decoded.id) {
+      return null
+    }
+    
+    await connectToDatabase()
+    const User = (await import('@/models')).User
+    return await User.findById(decoded.id).select('-password')
+  } catch (error) {
+    console.error('Error getting user from token:', error)
+    return null
+  }
+}
 
-    const history = await History.find({ user: userId })
-      .populate({
-        path: 'productId',
-        model: Product,
-        select: '_id title price images description discount inStock',
-      })
-      .sort({ lastViewed: -1 })
+export async function GET(req) {
+  try {
+    await connectToDatabase()
+    
+    // Get user from token
+    const user = await getUserFromToken(req)
+    
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
+    // Get user history
+    const history = await History.find({ user: user._id })
+      .populate('product')
+      .sort({ createdAt: -1 })
+      .limit(20)
       .lean()
-
-    return setJson({
-      code: 200,
-      message: 'History retrieved successfully',
-      data: history,
+    
+    return NextResponse.json({
+      success: true,
+      data: history
     })
   } catch (error) {
-    console.error('Error fetching history:', error)
-    return setJson({
-      code: 500,
-      message: 'Failed to retrieve history',
-      error: error.message,
-    })
+    console.error('Error fetching user history:', error)
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to fetch history' },
+      { status: 500 }
+    )
   }
-})
+}
 
-// Add to history
-export const POST = apiHandler(async req => {
+export async function POST(req) {
   try {
-    const userId = req.headers.get('userId')
+    await connectToDatabase()
+    
+    // Get user from token
+    const user = await getUserFromToken(req)
+    
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
+    // Get product ID from request body
     const { productId } = await req.json()
-
-    // If no userId, don't save to database
-    if (!userId) {
-      return setJson({
-        code: 200,
-        message: 'No user ID provided, using local storage only',
-      })
-    }
-
+    
     if (!productId) {
-      return setJson({
-        code: 400,
-        message: 'Missing product ID',
-      })
+      return NextResponse.json(
+        { success: false, message: 'Product ID is required' },
+        { status: 400 }
+      )
     }
-
-    // Find existing history entry
-    let historyEntry = await History.findOne({
-      user: userId,
-      productId,
+    
+    // Check if history entry already exists
+    const existingEntry = await History.findOne({
+      user: user._id,
+      product: productId
     })
-
-    if (historyEntry) {
-      // Update existing entry
-      historyEntry = await History.findOneAndUpdate(
-        { user: userId, productId },
-        {
-          $set: { lastViewed: new Date() },
-          $inc: { viewCount: 1 },
-        },
-        { new: true }
-      ).populate({
-        path: 'productId',
-        select: '_id title price images description discount inStock',
-      })
-    } else {
-      // Create new entry
-      historyEntry = await History.create({
-        user: userId,
-        productId,
-        lastViewed: new Date(),
-        viewCount: 1,
-      })
-
-      historyEntry = await History.findById(historyEntry._id).populate({
-        path: 'productId',
-        select: '_id title price images description discount inStock',
+    
+    if (existingEntry) {
+      // Update timestamp
+      existingEntry.updatedAt = new Date()
+      await existingEntry.save()
+      
+      return NextResponse.json({
+        success: true,
+        message: 'History updated'
       })
     }
-
-    return setJson({
-      code: 200,
-      message: 'History updated successfully',
-      data: historyEntry,
+    
+    // Create new history entry
+    const newEntry = new History({
+      user: user._id,
+      product: productId
+    })
+    
+    await newEntry.save()
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Added to history'
     })
   } catch (error) {
-    console.error('Error updating history:', error)
-    return setJson({
-      code: 500,
-      message: 'Failed to update history',
-      error: error.message,
-    })
+    console.error('Error updating user history:', error)
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to update history' },
+      { status: 500 }
+    )
   }
-})
+}
 
 export const dynamic = 'force-dynamic'

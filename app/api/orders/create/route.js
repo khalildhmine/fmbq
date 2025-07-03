@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/helpers/db'
 import Order from '@/models/Order'
-import Product from '@/models/Product'
 import Joi from 'joi'
 import nodemailer from 'nodemailer'
+import User from '@/models/User'
+import Product from '@/models/Product'
 
+// Update the order schema to include points redemption
 const orderSchema = Joi.object({
   user: Joi.string().required(),
   cart: Joi.array()
@@ -79,15 +81,18 @@ const orderSchema = Joi.object({
   }),
 }).options({ stripUnknown: true })
 
-export async function POST(req) {
+// Update points logic: 1 point = 0.03 MRU
+const POINT_TO_MRU = 0.03
+
+export async function POST(request) {
   try {
     await connectToDatabase()
 
-    const value = await req.json()
-    console.log('Received order payload:', value)
+    const body = await request.json()
+    console.log('Received order payload:', body)
 
     // Validate the request body
-    const { error, value: validatedData } = orderSchema.validate(value)
+    const { error, value: validatedData } = orderSchema.validate(body)
     if (error) {
       console.error('Order validation error:', error.details)
       return NextResponse.json(
@@ -98,6 +103,47 @@ export async function POST(req) {
         },
         { status: 400 }
       )
+    }
+
+    // Handle points redemption if applicable
+    if (validatedData.pointsRedeemed > 0) {
+      try {
+        // Find the user
+        const user = await User.findById(validatedData.user)
+
+        if (!user) {
+          return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
+        }
+
+        // Check if user has enough points
+        if (user.coins < validatedData.pointsRedeemed) {
+          return NextResponse.json(
+            { success: false, message: 'Not enough points available' },
+            { status: 400 }
+          )
+        }
+
+        // Deduct points from user
+        user.coins -= validatedData.pointsRedeemed
+
+        // Add points transaction to history if you have that model
+        if (user.pointsHistory) {
+          user.pointsHistory.push({
+            amount: -validatedData.pointsRedeemed,
+            reason: `Redeemed for order discount`,
+            date: new Date(),
+          })
+        }
+
+        await user.save()
+        console.log(`Deducted ${validatedData.pointsRedeemed} points from user ${user._id}`)
+      } catch (pointsError) {
+        console.error('Error processing points redemption:', pointsError)
+        return NextResponse.json(
+          { success: false, message: 'Failed to process points redemption' },
+          { status: 500 }
+        )
+      }
     }
 
     // Create order with transformed data
@@ -129,6 +175,7 @@ export async function POST(req) {
       model: 'product',
     }))
 
+    // Include points information in the order
     const order = new Order({
       ...validatedData,
       cart: transformedCart,
@@ -142,6 +189,10 @@ export async function POST(req) {
           date: new Date().toISOString(),
         },
       ],
+      // Add points information to the order
+      pointsRedeemed: validatedData.pointsRedeemed || 0,
+      pointsDiscount:
+        validatedData.pointsRedeemed > 0 ? Math.floor(validatedData.pointsRedeemed / 100) * 40 : 0,
     })
 
     const savedOrder = await order.save()
@@ -170,13 +221,13 @@ export async function POST(req) {
       totalPrice: savedOrder.totalPrice,
       createdAt: savedOrder.createdAt,
       customer: {
-        name: value.user.name || 'Customer',
-        mobile: value.mobile,
+        name: validatedData.user.name || 'Customer',
+        mobile: validatedData.mobile,
       },
       items: savedOrder.cart.length,
       shippingAddress: {
-        city: value.shippingAddress.city,
-        area: value.shippingAddress.area,
+        city: validatedData.shippingAddress.city,
+        area: validatedData.shippingAddress.area,
       },
     }
 
@@ -253,8 +304,8 @@ export async function POST(req) {
       const orderSummary = `
         <ul style="list-style:none;padding:0;">
           <li><b>Order Number:</b> ${savedOrder.orderId}</li>
-          <li><b>Customer:</b> ${value.user.name || 'Customer'}</li>
-          <li><b>Mobile:</b> ${value.mobile}</li>
+          <li><b>Customer:</b> ${validatedData.user.name || 'Customer'}</li>
+          <li><b>Mobile:</b> ${validatedData.mobile}</li>
           <li><b>Address:</b> ${savedOrder.shippingAddress?.street || ''}, ${savedOrder.shippingAddress?.area || ''}, ${savedOrder.shippingAddress?.city || ''}, ${savedOrder.shippingAddress?.province || ''}, ${savedOrder.shippingAddress?.postalCode || ''}</li>
           <li><b>Payment Method:</b> ${savedOrder.paymentMethod}</li>
           <li><b>Status:</b> ${savedOrder.status}</li>
@@ -271,7 +322,7 @@ export async function POST(req) {
         from: process.env.EMAIL_USER || 'ilokakilos@gmail.com',
         to: ['formen.boutiqueen@gmail.com', 'dhminekhalil@gmail.com'],
         subject: `🛒 Nouvelle commande reçue: ${savedOrder.orderId}`,
-        text: `A new order has been placed.\nOrder Number: ${savedOrder.orderId}\nCustomer: ${value.user.name || 'Customer'}\nTotal Price: ${savedOrder.totalPrice}\n\nPlease check the admin panel for more details.`,
+        text: `A new order has been placed.\nOrder Number: ${savedOrder.orderId}\nCustomer: ${validatedData.user.name || 'Customer'}\nTotal Price: ${savedOrder.totalPrice}\n\nPlease check the admin panel for more details.`,
         html: `
           <div style="font-family:sans-serif;">
             <h2 style="color:#007b00;">Nouvelle commande reçue</h2>
@@ -290,6 +341,55 @@ export async function POST(req) {
     } catch (emailError) {
       console.error('Failed to send order email notification:', emailError)
       // Don't fail the order creation if email fails
+    }
+
+    // Calculate coins to earn (example: 1 point per 10 MRU spent after discounts)
+    const totalAfterDiscounts = validatedData.subtotalAfterDiscounts || 0
+    // Earned points: totalAfterDiscounts / (1 point = 0.03 MRU)
+    const pointsEarned = Math.floor(totalAfterDiscounts / (1 / POINT_TO_MRU))
+
+    // Deduct redeemed points if any
+    if (validatedData.pointsRedeemed > 0 && validatedData.user) {
+      const user = await User.findById(validatedData.user)
+      if (user) {
+        // Deduct used points
+        user.coins = Math.max(0, (user.coins || 0) - validatedData.pointsRedeemed)
+        user.coinsHistory = user.coinsHistory || []
+        user.coinsHistory.push({
+          amount: -Math.abs(validatedData.pointsRedeemed),
+          type: 'spent',
+          orderId: savedOrder?._id,
+          description: 'Coins redeemed for order',
+          createdAt: new Date(),
+        })
+        // Add earned points
+        if (pointsEarned > 0) {
+          user.coins += pointsEarned
+          user.coinsHistory.push({
+            amount: pointsEarned,
+            type: 'earned',
+            orderId: savedOrder?._id,
+            description: 'Coins earned from order',
+            createdAt: new Date(),
+          })
+        }
+        await user.save()
+      }
+    } else if (validatedData.user && pointsEarned > 0) {
+      // If no points redeemed, just add earned points
+      const user = await User.findById(validatedData.user)
+      if (user) {
+        user.coins = (user.coins || 0) + pointsEarned
+        user.coinsHistory = user.coinsHistory || []
+        user.coinsHistory.push({
+          amount: pointsEarned,
+          type: 'earned',
+          orderId: savedOrder?._id,
+          description: 'Coins earned from order',
+          createdAt: new Date(),
+        })
+        await user.save()
+      }
     }
 
     return NextResponse.json(
