@@ -1,164 +1,166 @@
-import { setJson, apiHandler } from '@/helpers/api'
+import { NextResponse } from 'next/server'
 import { Product } from '@/models'
 
-const analyzeImage = async base64Image => {
-  try {
-    console.log('Analyzing uploaded image...')
-
-    // Using a different model with better free-tier support
-    const response = await fetch(
-      'https://api-inference.huggingface.co/models/microsoft/resnet-50',
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-        body: JSON.stringify({
-          inputs: base64Image,
-          options: {
-            wait_for_model: true,
-            use_cache: true,
-          },
-        }),
-      }
-    )
-
-    const text = await response.text()
-    console.log('Raw API response:', text)
-
-    if (!response.ok) {
-      throw new Error(`Hugging Face API error: ${text}`)
-    }
-
-    const result = JSON.parse(text)
-    console.log('Parsed result:', result)
-
-    // Extract meaningful labels
-    const labels = Array.isArray(result) ? result[0] : result
-    return {
-      labels: labels?.label?.split(' ') || [],
-      confidence: labels?.score || 0,
-    }
-  } catch (error) {
-    console.error('Error analyzing uploaded image:', error)
-    // Return basic categorization instead of throwing
-    return {
-      labels: ['clothing', 'apparel'],
-      confidence: 1.0,
-    }
-  }
+// Rate limiting configuration
+const RATE_LIMIT = {
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 10, // 10 requests per minute
 }
 
-const analyzeProductImage = async imageUrl => {
-  try {
-    const response = await fetch(
-      'https://api-inference.huggingface.co/models/google/vit-base-patch16-224',
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-        body: JSON.stringify({
-          inputs: imageUrl,
-        }),
-      }
-    )
+// Keep track of requests for rate limiting
+const requestLog = new Map()
 
-    if (!response.ok) return null
-    const result = await response.json()
-    return result[0]
-  } catch (error) {
-    console.error('Error analyzing product image:', error)
-    return null
+// Check rate limit
+const checkRateLimit = ip => {
+  const now = Date.now()
+  const windowStart = now - RATE_LIMIT.windowMs
+
+  // Clean up old entries
+  for (const [key, time] of requestLog.entries()) {
+    if (time < windowStart) requestLog.delete(key)
   }
+
+  // Count requests in current window
+  const requests = Array.from(requestLog.entries()).filter(
+    ([key, time]) => key.startsWith(ip) && time > windowStart
+  ).length
+
+  return requests < RATE_LIMIT.maxRequests
 }
 
-const findSimilarProducts = async imageAnalysis => {
+// Find products based on labels
+const findProductsByLabels = async labels => {
   try {
-    // Build search query from labels
+    // Create search query from labels
+    const searchTerms = labels.map(({ label }) => label)
+
     const searchQuery = {
-      $or: imageAnalysis.labels.map(label => ({
-        $or: [
-          { title: { $regex: label, $options: 'i' } },
-          { description: { $regex: label, $options: 'i' } },
-          { category: { $regex: label, $options: 'i' } },
-        ],
-      })),
+      $or: [
+        { name: { $regex: searchTerms.join('|'), $options: 'i' } },
+        { description: { $regex: searchTerms.join('|'), $options: 'i' } },
+        { tags: { $in: searchTerms.map(t => new RegExp(t, 'i')) } },
+      ],
     }
 
-    console.log('Search query:', JSON.stringify(searchQuery, null, 2))
+    // Get matching products
+    const products = await Product.find(searchQuery)
+      .populate('categoryHierarchy.mainCategory')
+      .populate('categoryHierarchy.subCategory')
+      .populate('categoryHierarchy.leafCategory')
+      .populate('category')
+      .limit(20)
+      .lean()
 
-    // Find matching products
-    const products = await Product.find(searchQuery).limit(20).lean()
-
-    console.log(`Found ${products.length} matching products`)
+    // Score products based on label matches
     return products
+      .map(product => {
+        let score = 0
+        const productText = [product.name, product.description, ...(product.tags || [])]
+          .join(' ')
+          .toLowerCase()
+
+        labels.forEach(({ label, confidence }) => {
+          if (productText.includes(label.toLowerCase())) {
+            score += confidence
+          }
+        })
+
+        return {
+          ...product,
+          similarityScore: score,
+        }
+      })
+      .sort((a, b) => b.similarityScore - a.similarityScore)
   } catch (error) {
-    console.error('Error finding similar products:', error)
+    console.error('Error finding products:', error)
     return []
   }
 }
 
-const calculateSimilarity = (analysis1, analysis2) => {
+const visualSearch = async req => {
   try {
-    // Compare labels
-    const labels1 = analysis1.label.toLowerCase().split(' ')
-    const labels2 = analysis2.label.toLowerCase().split(' ')
+    // Get client IP for rate limiting
+    const ip = req.headers.get('x-forwarded-for') || 'unknown'
 
-    // Count matching labels
-    const matchingLabels = labels1.filter(label => labels2.includes(label)).length
-
-    // Calculate similarity score (0 to 1)
-    return matchingLabels / Math.max(labels1.length, labels2.length)
-  } catch {
-    return 0
-  }
-}
-
-const visualSearch = apiHandler(
-  async req => {
-    try {
-      const { image } = await req.json()
-      console.log('Received visual search request')
-
-      if (!image) {
-        return setJson({ success: false, message: 'No image provided' }, 400)
-      }
-
-      const base64Image = image.replace(/^data:image\/[a-z]+;base64,/, '')
-
-      // Analyze uploaded image
-      const uploadedImageAnalysis = await analyzeImage(base64Image)
-      console.log('Uploaded image analysis completed')
-
-      // Find similar products
-      const similarProducts = await findSimilarProducts(uploadedImageAnalysis)
-      console.log(`Found ${similarProducts.length} similar products`)
-
-      return setJson({
-        success: true,
-        data: {
-          analysis: uploadedImageAnalysis,
-          products: similarProducts,
-        },
-      })
-    } catch (error) {
-      console.error('Visual search error:', error)
-      return setJson(
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
         {
           success: false,
-          message: error.message || 'Visual search failed',
+          message: 'Rate limit exceeded. Please try again later.',
         },
-        500
+        { status: 429 }
       )
     }
-  },
-  {
-    methods: ['POST'],
+
+    // Log request
+    requestLog.set(`${ip}-${Date.now()}`, Date.now())
+
+    const { image } = await req.json()
+    console.log('Received visual search request')
+
+    if (!image) {
+      return NextResponse.json({ success: false, message: 'No image provided' }, { status: 400 })
+    }
+
+    // Call Python visual search API
+    console.log('Calling Python visual search API...')
+    const response = await fetch('http://localhost:8000/api/visual-search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        image: image,
+        confidence_threshold: 0.3,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`Visual search API error: ${error}`)
+    }
+
+    const labels = await response.json()
+
+    if (!labels.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Could not classify image',
+        },
+        { status: 400 }
+      )
+    }
+
+    console.log(
+      'Image labels:',
+      labels.map(l => `${l.label} (${l.confidence})`)
+    )
+
+    // Find similar products using labels
+    console.log('Finding similar products...')
+    const similarProducts = await findProductsByLabels(labels)
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        products: similarProducts,
+        labels: labels,
+        message: similarProducts.length === 0 ? 'No similar products found' : undefined,
+      },
+    })
+  } catch (error) {
+    console.error('Visual search error:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        message: error.message || 'Visual search failed',
+        error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      },
+      { status: 500 }
+    )
   }
-)
+}
 
 export const POST = visualSearch
 export const dynamic = 'force-dynamic'

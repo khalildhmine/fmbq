@@ -323,53 +323,6 @@ const getProductsByCategories = apiHandler(async req => {
   }
 })
 
-function buildProductFilter(query) {
-  const filter = { inStock: { $gt: 0 } }
-
-  // Handle categories
-  if (query.categories) {
-    const categoryIds = query.categories.split(',')
-    filter.category = { $in: categoryIds }
-  }
-
-  // Handle brands
-  if (query.brands) {
-    const brandIds = query.brands.split(',')
-    filter.brand = { $in: brandIds }
-  }
-
-  // Handle colors
-  if (query.colors) {
-    const colorNames = query.colors.split(',')
-    filter['colors.name'] = { $in: colorNames }
-  }
-
-  // Handle sizes
-  if (query.sizes) {
-    const sizeValues = query.sizes.split(',')
-    filter['sizes.size'] = { $in: sizeValues }
-  }
-
-  // Handle price range
-  if (query.price_min || query.price_max) {
-    filter.price = {}
-    if (query.price_min) filter.price.$gte = Number(query.price_min)
-    if (query.price_max) filter.price.$lte = Number(query.price_max)
-  }
-
-  // Handle discount
-  if (query.discount === 'true') {
-    filter.discount = { $gt: 0 }
-  }
-
-  // Handle inStock
-  if (query.inStock === 'true') {
-    filter.inStock = { $gt: 0 }
-  }
-
-  return filter
-}
-
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -377,8 +330,11 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit')) || 20
     const sort = searchParams.get('sort') || 'latest'
 
+    // Convert searchParams to plain object
+    const queryParams = Object.fromEntries(searchParams.entries())
+
     // Build filter
-    const filter = buildProductFilter(searchParams)
+    const filter = buildProductFilter(queryParams)
 
     // Build sort options
     const sortOptions = {}
@@ -389,9 +345,10 @@ export async function GET(request) {
       case 'price_desc':
         sortOptions.price = -1
         break
-      case 'latest':
-        sortOptions.createdAt = -1
+      case 'popular':
+        sortOptions.sold = -1
         break
+      case 'latest':
       default:
         sortOptions.createdAt = -1
     }
@@ -432,6 +389,79 @@ export async function GET(request) {
       { status: 500 }
     )
   }
+}
+
+function buildProductFilter(query) {
+  const filter = {}
+
+  // Handle inStock
+  if (query.inStock === 'true') {
+    filter.inStock = { $gt: 0 }
+  }
+
+  // Handle category
+  const categoryId = query.category || query.categories
+  if (categoryId && categoryId !== 'null' && categoryId !== 'undefined') {
+    filter.$or = [
+      { category: categoryId },
+      { 'categoryHierarchy.mainCategory': categoryId },
+      { 'categoryHierarchy.subCategory': categoryId },
+      { 'categoryHierarchy.leafCategory': categoryId },
+    ]
+  }
+
+  // Handle brand - check both brand and brands parameters
+  const brandParam = query.brand || query.brands
+  if (brandParam && brandParam !== 'null' && brandParam !== 'undefined') {
+    const brandIds = brandParam.split(',').filter(id => id && id !== 'null' && id !== 'undefined')
+    if (brandIds.length > 0) {
+      // Convert string IDs to ObjectId if needed
+      const brandObjectIds = brandIds.map(id => {
+        try {
+          return new ObjectId(id)
+        } catch (e) {
+          return id
+        }
+      })
+      filter.brand = { $in: brandObjectIds }
+    }
+  }
+
+  // Handle colors
+  if (query.colors) {
+    const colorNames = query.colors.split(',').filter(Boolean)
+    if (colorNames.length > 0) {
+      filter['colors.name'] = { $in: colorNames }
+    }
+  }
+
+  // Handle sizes
+  if (query.sizes) {
+    const sizeValues = query.sizes.split(',').filter(Boolean)
+    if (sizeValues.length > 0) {
+      filter['sizes.size'] = { $in: sizeValues }
+    }
+  }
+
+  // Handle price range
+  if (query.price_min || query.price_max) {
+    filter.price = {}
+    if (query.price_min && !isNaN(query.price_min)) {
+      filter.price.$gte = Number(query.price_min)
+    }
+    if (query.price_max && !isNaN(query.price_max)) {
+      filter.price.$lte = Number(query.price_max)
+    }
+  }
+
+  // Handle discount
+  if (query.discount === 'true') {
+    filter.discount = { $gt: 0 }
+  }
+
+  console.log('🔍 Query params:', query)
+  console.log('🔍 Built filter:', JSON.stringify(filter, null, 2))
+  return filter
 }
 
 async function getFacets(baseFilter) {

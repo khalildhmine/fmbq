@@ -7,111 +7,107 @@ import { apiHandler, setJson } from '@/helpers/api/api-handler'
 const getWishlist = apiHandler(
   async req => {
     try {
-      const userId = req.headers.get('userId')
+      // Try to get userId from headers or query
+      let userId = req.headers.get('userId')
+      if (!userId && req.query) {
+        userId = req.query.userId
+      }
+
       console.log('Getting wishlist for userId:', userId)
 
-      // Handle case when userId is null
+      // Defensive: ensure userId is present
       if (!userId) {
-        console.log('No userId provided for wishlist')
-        return setJson({
-          code: 200,
-          message: 'ok',
-          data: [],
-        })
+        return Response.json(
+          { success: false, message: 'No userId provided for wishlist', data: [] },
+          { status: 200 }
+        )
       }
 
-      // Before populating 'product', ensure Product model is registered:
-      if (!mongoose.models.Product) {
-        mongoose.model('Product', Product.schema)
-      }
+      // Fetch wishlist items and populate product
+      const wishlistItems = await Wishlist.find({ user: userId }).populate('product')
 
-      const wishlistItems = await Wishlist.find({
-        user: userId,
-      })
-        .populate({
-          path: 'product',
-          model: Product,
-          select: '_id title price images description discount inStock', // Added more fields
-        })
-        .lean()
-
-      // Transform the response to include proper image URLs
-      const transformedItems = wishlistItems.map(item => ({
-        ...item,
-        product: {
-          ...item.product,
-          image: item.product.images?.[0]?.url || null, // Use first image as main
-          images: item.product.images || [], // Include all images
-        },
-      }))
-
-      console.log(`Found ${wishlistItems.length} items for user ${userId}:`, wishlistItems)
+      // Defensive: filter out items with null product to avoid .images error
+      const safeWishlist = wishlistItems
+        .filter(item => item.product)
+        .map(item => ({
+          ...item.toObject(),
+          product: item.product,
+        }))
 
       return setJson({
         code: 200,
         message: 'ok',
-        data: transformedItems,
+        data: safeWishlist,
       })
     } catch (error) {
       console.error('Wishlist fetch error:', error)
-      return setJson({ code: 500, message: error.message, data: [] })
+      return setJson({
+        code: 500,
+        message: error.message,
+        data: [],
+      })
     }
   },
   { isJwt: true }
 )
 
-const addToWishlist = apiHandler(
-  async req => {
-    try {
-      const userId = req.headers.get('userId')
-      const { productId } = await req.json()
+export async function POST(req) {
+  try {
+    const { userId, productId } = await req.json()
 
-      console.log('Add to wishlist:', { userId, productId })
+    console.log('Add to wishlist:', { userId, productId })
 
-      // Before using Product in any population or reference, ensure it's registered:
-      if (!mongoose.models.Product) {
-        mongoose.model('Product', Product.schema)
-      }
+    // Defensive: ensure userId is present and valid
+    if (!userId) {
+      return Response.json(
+        { success: false, message: 'User ID is required for wishlist.' },
+        { status: 400 }
+      )
+    }
+    if (!productId) {
+      return Response.json(
+        { success: false, message: 'Product ID is required for wishlist.' },
+        { status: 400 }
+      )
+    }
 
-      const existing = await Wishlist.findOne({
-        user: userId,
-        product: productId,
-      })
+    // Before using Product in any population or reference, ensure it's registered:
+    if (!mongoose.models.Product) {
+      mongoose.model('Product', Product.schema)
+    }
 
-      if (existing) {
-        return setJson({
-          code: 200,
-          message: 'Already in wishlist',
-          data: existing,
-        })
-      }
+    const existing = await Wishlist.findOne({
+      user: userId,
+      product: productId,
+    })
 
-      const item = await Wishlist.create({
-        user: userId,
-        product: productId,
-      })
-
-      const populated = await Wishlist.findById(item._id)
-        .populate('product', '_id title price image')
-        .lean()
-
+    if (existing) {
       return setJson({
         code: 200,
-        message: 'Added to wishlist',
-        data: populated,
+        message: 'Already in wishlist',
+        data: existing,
       })
-    } catch (error) {
-      console.error('Add to wishlist error:', error)
-      return setJson({ code: 500, message: error.message })
     }
-  },
-  {
-    isJwt: true,
-    schema: joi.object({
-      productId: joi.string().required(),
-    }),
+
+    const item = await Wishlist.create({
+      user: userId,
+      product: productId,
+    })
+
+    const populated = await Wishlist.findById(item._id)
+      .populate('product', '_id title price image')
+      .lean()
+
+    return setJson({
+      code: 200,
+      message: 'Added to wishlist',
+      data: populated,
+    })
+  } catch (error) {
+    console.error('Add to wishlist error:', error)
+    return setJson({ code: 500, message: error.message })
   }
-)
+}
 
 const removeFromWishlist = apiHandler(
   async req => {
@@ -158,7 +154,7 @@ const removeFromWishlist = apiHandler(
   }
 )
 
-export const POST = addToWishlist
+// Ensure these exports appear only ONCE at the end of the file:
 export const DELETE = removeFromWishlist
 export const GET = getWishlist
 export const dynamic = 'force-dynamic'

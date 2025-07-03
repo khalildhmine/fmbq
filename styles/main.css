@@ -1,6 +1,8 @@
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
+@import './fonts/vazir.css';
+@import './abstracts';
 
 @layer base {
   :root {
@@ -74,7 +76,4 @@
     @apply bg-background text-foreground;
   }
 }
-
-@import './fonts/vazir.css';
-@import './abstracts';
 
