@@ -48,17 +48,36 @@ function OrdersTable({ initialOrders = [], currentPage = 1, totalPages = 1, onPa
       console.log('Received order data:', data) // Debug log
 
       if (data.success && data.order) {
-        // Update order data with fetched details
+        // Ensure all required fields have default values
         orderData = {
-          ...orderData,
-          ...data.order,
-          items: data.order.items.map(item => ({
-            ...item,
-            name: item.name,
-            price: item.discountedPrice || item.originalPrice,
-            quantity: item.quantity,
-            image: item.image || '/placeholder.png',
+          _id: data.order._id || orderId,
+          orderId: data.order.orderId || orderId,
+          customer: data.order.user?.name || data.order.user?.email || 'Anonymous',
+          date: data.order.createdAt || new Date().toISOString(),
+          amount: parseFloat(data.order.totalPrice || 0),
+          status: data.order.status || 'pending',
+          items: (data.order.items || []).map(item => ({
+            _id: item._id || '',
+            name: item.name || item.title || 'Untitled Product',
+            price: parseFloat(item.price || 0),
+            quantity: parseInt(item.quantity || 1),
+            image: item.image || item.img?.url || '/placeholder.png',
+            size: item.size || {},
+            color: item.color || {},
           })),
+          totalItems: data.order.totalItems || 0,
+          paymentMethod: data.order.paymentMethod || 'N/A',
+          mobile: data.order.mobile || 'N/A',
+          address: data.order.address || {},
+          shipping: {
+            address: data.order.address
+              ? `${data.order.address.street || ''}, ${data.order.address.city?.name || ''}`
+              : 'N/A',
+            trackingNumber: data.order.trackingNumber || 'Pending',
+          },
+          paymentProofSource: data.order.paymentProofSource || 'page',
+          paymentVerification: data.order.paymentVerification || null,
+          _rawData: data.order,
         }
       } else {
         throw new Error(data.message || 'Failed to fetch order details')

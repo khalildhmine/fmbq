@@ -231,10 +231,40 @@ const transformCartToItems = cart => {
 }
 
 export default function OrderDetailsModal({ open, onClose, order }) {
-  if (!order) return null
+  if (!order) {
+    return null
+  }
+
+  const {
+    _id = '',
+    orderId = '',
+    customer = 'N/A',
+    date = new Date(),
+    amount = 0,
+    status = 'pending',
+    items = [],
+    totalItems = 0,
+    paymentMethod = 'N/A',
+    mobile = 'N/A',
+    address = {},
+    shipping = { address: 'N/A', trackingNumber: 'Pending' },
+    paymentProofSource = 'page',
+    paymentVerification = null,
+    _rawData = {},
+  } = order
+
+  const formattedItems = items.map(item => ({
+    id: item._id || item.id || '',
+    name: item.name || item.title || 'Untitled Product',
+    price: item.price || 0,
+    quantity: item.quantity || 1,
+    image: item.image || item.img?.url || '/placeholder.png',
+    size: item.size || {},
+    color: item.color || {},
+  }))
 
   const paymentProofImage = extractPaymentProofImage(order)
-  const orderItems = order.items?.length > 0 ? order.items : transformCartToItems(order.cart)
+  const orderItems = items?.length > 0 ? items : transformCartToItems(order.cart)
 
   // Calculate totals with proper number handling
   const totals = {
@@ -280,11 +310,11 @@ export default function OrderDetailsModal({ open, onClose, order }) {
                 </div>
                 <div>
                   <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
-                    Order #{order.orderId}
+                    Order #{orderId}
                   </h2>
-                  <p className="mt-1 text-gray-500 font-medium">{formatDate(order.createdAt)}</p>
+                  <p className="mt-1 text-gray-500 font-medium">{formatDate(date)}</p>
                 </div>
-                <StatusBadge status={order.status} />
+                <StatusBadge status={status} />
               </div>
 
               <button
@@ -311,11 +341,11 @@ export default function OrderDetailsModal({ open, onClose, order }) {
                   <div className="p-6 space-y-6">
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                       <span className="text-gray-600 font-medium">Status</span>
-                      <StatusBadge status={order.status} />
+                      <StatusBadge status={status} />
                     </div>
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                       <span className="text-gray-600 font-medium">Order Date</span>
-                      <span className="font-semibold">{formatDate(order.createdAt)}</span>
+                      <span className="font-semibold">{formatDate(date)}</span>
                     </div>
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                       <span className="text-gray-600 font-medium">Total Items</span>
@@ -337,9 +367,7 @@ export default function OrderDetailsModal({ open, onClose, order }) {
                       <Phone className="w-5 h-5 text-blue-600" />
                       <div>
                         <p className="text-sm text-blue-600 font-medium">Phone Number</p>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {order.mobile || 'N/A'}
-                        </p>
+                        <p className="text-lg font-semibold text-gray-900">{mobile}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4 p-4 bg-blue-50 rounded-xl">
@@ -347,10 +375,10 @@ export default function OrderDetailsModal({ open, onClose, order }) {
                       <div>
                         <p className="text-sm text-blue-600 font-medium">Shipping Address</p>
                         <p className="text-lg font-semibold text-gray-900">
-                          {order.shippingAddress?.street}, {order.shippingAddress?.area}
+                          {address?.street}, {address?.area}
                         </p>
                         <p className="text-base text-gray-600">
-                          {order.shippingAddress?.city}, {order.shippingAddress?.province}
+                          {address?.city}, {address?.province}
                         </p>
                       </div>
                     </div>
@@ -373,7 +401,7 @@ export default function OrderDetailsModal({ open, onClose, order }) {
                           <span className="text-emerald-600 font-medium">Payment Method</span>
                         </div>
                         <span className="font-semibold text-gray-900 capitalize">
-                          {order.paymentMethod?.replace(/_/g, ' ').toLowerCase() || 'N/A'}
+                          {paymentMethod?.replace(/_/g, ' ').toLowerCase() || 'N/A'}
                         </span>
                       </div>
 
@@ -402,7 +430,7 @@ export default function OrderDetailsModal({ open, onClose, order }) {
                 </div>
 
                 {/* Payment Verification */}
-                {order.paymentVerification && (
+                {paymentVerification && (
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] overflow-hidden">
                     <div className="border-b border-gray-100 p-6">
                       <h3 className="text-xl font-bold text-gray-900 flex items-center">
@@ -413,7 +441,7 @@ export default function OrderDetailsModal({ open, onClose, order }) {
                     <div className="p-6 space-y-6">
                       <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl">
                         <span className="text-purple-600 font-medium">Status</span>
-                        <StatusBadge status={order.paymentVerification.status} />
+                        <StatusBadge status={paymentVerification.status} />
                       </div>
 
                       {paymentProofImage ? (
