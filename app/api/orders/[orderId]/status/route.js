@@ -2,6 +2,42 @@ import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/helpers/db'
 import { validateToken } from '@/helpers/auth'
 import Order from '@/models/Order'
+import { Expo } from 'expo-server-sdk'
+
+const expo = new Expo()
+
+// Helper function to send push notification
+async function sendOrderStatusNotification(user, order, newStatus) {
+  try {
+    if (!user.expoPushToken || !Expo.isExpoPushToken(user.expoPushToken)) {
+      console.log('No valid push token for user:', user._id)
+      return
+    }
+
+    const message = {
+      to: user.expoPushToken,
+      sound: 'default',
+      title: 'Order Status Update',
+      body: `Your order #${order.orderNumber} has been updated to: ${newStatus}`,
+      data: {
+        type: 'ORDER_STATUS_UPDATE',
+        orderId: order._id.toString(),
+        status: newStatus,
+      },
+    }
+
+    const chunks = expo.chunkPushNotifications([message])
+    for (let chunk of chunks) {
+      try {
+        await expo.sendPushNotificationsAsync(chunk)
+      } catch (error) {
+        console.error('Error sending push notification:', error)
+      }
+    }
+  } catch (error) {
+    console.error('Error in sendOrderStatusNotification:', error)
+  }
+}
 
 export async function PATCH(request, { params }) {
   try {
@@ -51,7 +87,7 @@ export async function PATCH(request, { params }) {
     }
 
     // Find the order and update status
-    const order = await Order.findById(orderId)
+    const order = await Order.findById(orderId).populate('user', '-password')
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
@@ -75,6 +111,11 @@ export async function PATCH(request, { params }) {
     )
       .populate('user', '-password')
       .lean()
+
+    // Send notification to user about status update
+    if (order.user && order.user.notificationsEnabled) {
+      await sendOrderStatusNotification(order.user, order, status)
+    }
 
     return NextResponse.json({
       success: true,
