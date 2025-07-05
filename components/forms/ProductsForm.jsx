@@ -175,8 +175,8 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
           selectedCategories.subCategory?._id || selectedCategories.subCategory,
           selectedCategories.leafCategory?._id || selectedCategories.leafCategory,
         ].filter(Boolean),
-        colors: data.colors || [],
-        sizes: data.sizes || [],
+        colors: Array.isArray(data.colors) ? data.colors : data.colors ? [data.colors] : [],
+        sizes: Array.isArray(data.sizes) ? data.sizes : data.sizes ? [data.sizes] : [],
         variants: data.variants || [],
         attributes: data.attributes || [],
         specifications: data.specifications || [],
@@ -230,8 +230,16 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
           inStock: selectedProduct.inStock || 0,
           description: selectedProduct.description || '',
           discount: selectedProduct.discount || 0,
-          sizes: selectedProduct.sizes || [],
-          colors: selectedProduct.colors || [],
+          sizes: Array.isArray(selectedProduct.sizes)
+            ? selectedProduct.sizes
+            : selectedProduct.sizes
+              ? [selectedProduct.sizes].filter(Boolean)
+              : [],
+          colors: Array.isArray(selectedProduct.colors)
+            ? selectedProduct.colors
+            : selectedProduct.colors
+              ? [selectedProduct.colors].filter(Boolean)
+              : [],
           gender: selectedProduct.gender || '',
           info: selectedProduct.info || [],
           specification: selectedProduct.specification || [],
