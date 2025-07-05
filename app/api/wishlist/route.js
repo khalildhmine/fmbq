@@ -1,8 +1,8 @@
 import joi from 'joi'
 import Wishlist from '@/models/Wishlist'
 import mongoose from 'mongoose'
-import Product from '@/models/Product' // <-- Ensure Product model is imported and registered
 import { apiHandler, setJson } from '@/helpers/api/api-handler'
+import { Product } from '@/models'
 
 const getWishlist = apiHandler(
   async req => {
