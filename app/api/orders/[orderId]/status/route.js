@@ -2,44 +2,8 @@ import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/helpers/db'
 import { validateToken } from '@/helpers/auth'
 import Order from '@/models/Order'
-import { Expo } from 'expo-server-sdk'
 import { verifyAuth } from '@/utils/auth'
 import { sendNotification } from '@/services/notifications.service'
-
-const expo = new Expo()
-
-// Helper function to send push notification
-async function sendOrderStatusNotification(user, order, newStatus) {
-  try {
-    if (!user.expoPushToken || !Expo.isExpoPushToken(user.expoPushToken)) {
-      console.log('No valid push token for user:', user._id)
-      return
-    }
-
-    const message = {
-      to: user.expoPushToken,
-      sound: 'default',
-      title: 'Order Status Update',
-      body: `Your order #${order.orderNumber} has been updated to: ${newStatus}`,
-      data: {
-        type: 'ORDER_STATUS_UPDATE',
-        orderId: order._id.toString(),
-        status: newStatus,
-      },
-    }
-
-    const chunks = expo.chunkPushNotifications([message])
-    for (let chunk of chunks) {
-      try {
-        await expo.sendPushNotificationsAsync(chunk)
-      } catch (error) {
-        console.error('Error sending push notification:', error)
-      }
-    }
-  } catch (error) {
-    console.error('Error in sendOrderStatusNotification:', error)
-  }
-}
 
 export async function PATCH(request, context) {
   try {
@@ -83,10 +47,7 @@ export async function PATCH(request, context) {
     }
 
     // Find the order and populate user data
-    const order = await Order.findById(orderId).populate(
-      'user',
-      'expoPushToken pushToken notificationSettings email name'
-    )
+    const order = await Order.findById(orderId).populate('user', 'expoPushToken email name')
     if (!order) {
       return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 })
     }
@@ -109,17 +70,12 @@ export async function PATCH(request, context) {
       { new: true }
     )
 
-    // Get the active push token using the virtual getter or fallback to other token fields
-    const pushToken =
-      order.user?.pushToken ||
-      order.user?.expoPushToken ||
-      order.user?.notificationSettings?.expoPushToken
-
     // Send notification to user if they have a notification token
-    if (pushToken) {
+    if (order.user?.expoPushToken) {
       try {
+        console.log('Sending notification to token:', order.user.expoPushToken)
         await sendNotification({
-          tokens: [pushToken],
+          tokens: [order.user.expoPushToken],
           title: 'Order Status Update',
           body: `Your order #${order.orderNumber || orderId} has been ${status}`,
           data: {
@@ -129,10 +85,13 @@ export async function PATCH(request, context) {
             orderNumber: order.orderNumber,
           },
         })
+        console.log('Notification sent successfully')
       } catch (notificationError) {
         console.error('Failed to send notification:', notificationError)
         // Don't fail the request if notification fails
       }
+    } else {
+      console.log('No push token found for user:', order.user?._id)
     }
 
     return NextResponse.json({
@@ -168,7 +127,7 @@ export async function PUT(request, { params }) {
       picked_up: ['delivered'],
     }
 
-    const order = await Order.findById(orderId)
+    const order = await Order.findById(orderId).populate('user', 'expoPushToken email name')
     if (!order) {
       return Response.json({ success: false, error: 'Order not found' }, { status: 404 })
     }
@@ -194,12 +153,35 @@ export async function PUT(request, { params }) {
 
     await order.save()
 
+    // Send notification
+    if (order.user?.expoPushToken) {
+      try {
+        console.log('Sending notification to token:', order.user.expoPushToken)
+        await sendNotification({
+          tokens: [order.user.expoPushToken],
+          title: 'Order Status Update',
+          body: `Your order #${order.orderNumber || orderId} has been ${status}`,
+          data: {
+            type: 'ORDER_STATUS',
+            orderId: orderId,
+            status: status,
+            orderNumber: order.orderNumber,
+          },
+        })
+        console.log('Notification sent successfully')
+      } catch (notificationError) {
+        console.error('Failed to send notification:', notificationError)
+      }
+    } else {
+      console.log('No push token found for user:', order.user?._id)
+    }
+
     return Response.json({
       success: true,
       data: order,
     })
   } catch (error) {
-    console.error('Status update error:', error)
+    console.error('Error updating order status:', error)
     return Response.json({ success: false, error: error.message }, { status: 500 })
   }
 }
