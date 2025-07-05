@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 import { Eye, Printer, ChevronLeft, ChevronRight } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
 // Dynamically import modals
-const OrderDetailsModal = dynamic(() => import('@/components/admin/OrderDetailsModal'), {
+const NewOrderDetailsModal = dynamic(() => import('@/components/admin/NewOrderDetailsModal'), {
   ssr: false,
   loading: () => <div>Loading...</div>,
 })
@@ -16,103 +16,213 @@ const PrintOrderModal = dynamic(() => import('@/components/admin/PrintOrderModal
   loading: () => <div>Loading...</div>,
 })
 
+// Status options for the dropdown
+const orderStatuses = ['pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled']
+
+// Payment verification statuses
+const paymentStatuses = ['pending', 'verified', 'rejected']
+
 function OrdersTable({ initialOrders = [], currentPage = 1, totalPages = 1, onPageChange }) {
   const [orders, setOrders] = useState(initialOrders)
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false)
 
+  // Keep orders in sync with initialOrders prop
+  useEffect(() => {
+    setOrders(initialOrders)
+  }, [initialOrders])
+
   const handleViewDetails = async order => {
-    // Set loading state immediately
-    setSelectedOrder({ ...order, isLoading: true })
-    setIsDetailsModalOpen(true)
-
-    let orderData = { ...order }
-
     try {
       // Get the order ID, ensuring we have a valid value
-      const orderId = order._id || order.id
+      const orderId = order?._id || order?.id
       if (!orderId) {
-        throw new Error('Order ID is missing')
+        toast.error('Invalid order data')
+        return
       }
 
-      console.log('Fetching order details for ID:', orderId) // Debug log
+      // Set initial order data immediately
+      setSelectedOrder(order)
+      setIsDetailsModalOpen(true)
 
+      // Fetch complete order details
       const response = await fetch(`/api/orders/${orderId}`)
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+        throw new Error('Failed to fetch order details')
       }
 
       const data = await response.json()
-      console.log('Received order data:', data) // Debug log
 
-      if (data.success && data.order) {
-        // Ensure all required fields have default values
-        orderData = {
-          _id: data.order._id || orderId,
-          orderId: data.order.orderId || orderId,
-          customer: data.order.user?.name || data.order.user?.email || 'Anonymous',
-          date: data.order.createdAt || new Date().toISOString(),
-          amount: parseFloat(data.order.totalPrice || 0),
-          status: data.order.status || 'pending',
-          items: (data.order.items || []).map(item => ({
-            _id: item._id || '',
-            name: item.name || item.title || 'Untitled Product',
-            price: parseFloat(item.price || 0),
-            quantity: parseInt(item.quantity || 1),
-            image: item.image || item.img?.url || '/placeholder.png',
-            size: item.size || {},
-            color: item.color || {},
-          })),
-          totalItems: data.order.totalItems || 0,
-          paymentMethod: data.order.paymentMethod || 'N/A',
-          mobile: data.order.mobile || 'N/A',
-          address: data.order.address || {},
-          shipping: {
-            address: data.order.address
-              ? `${data.order.address.street || ''}, ${data.order.address.city?.name || ''}`
-              : 'N/A',
-            trackingNumber: data.order.trackingNumber || 'Pending',
-          },
-          paymentProofSource: data.order.paymentProofSource || 'page',
-          paymentVerification: data.order.paymentVerification || null,
-          _rawData: data.order,
-        }
-      } else {
-        throw new Error(data.message || 'Failed to fetch order details')
+      // Handle both flat and nested response structures
+      const orderData = data.order || data
+
+      // Process and set the complete order data
+      const processedOrder = {
+        ...orderData,
+        _id: orderData._id || orderId,
+        orderId: orderData.orderId || orderId,
+        items: orderData.items || orderData.cart || [],
+        status: orderData.status || 'pending',
+        amount: parseFloat(orderData.amount || orderData.totalPrice || 0),
+        totalPrice: parseFloat(orderData.totalPrice || orderData.amount || 0),
+        createdAt: orderData.createdAt || orderData.date || new Date().toISOString(),
+        customer:
+          orderData.user?.name || orderData.user?.email || orderData.customer || 'Anonymous',
+        paymentVerification: orderData.paymentVerification || {},
+        address: orderData.address || orderData.shippingAddress || null,
+        user: orderData.user || {},
+        mobile: orderData.mobile || '',
+        paymentMethod: orderData.paymentMethod || 'N/A',
+        paymentStatus:
+          orderData.paymentStatus || orderData.paymentVerification?.status || 'pending',
+        subtotalBeforeDiscounts: orderData.subtotalBeforeDiscounts || 0,
+        totalDiscount: orderData.totalDiscount || 0,
+        // Keep the original nested structure for compatibility
+        order: orderData,
       }
+
+      // Update both selected order and orders list
+      setSelectedOrder(processedOrder)
+      setOrders(prevOrders =>
+        prevOrders.map(o => (o._id === orderId ? { ...o, ...processedOrder } : o))
+      )
     } catch (error) {
-      console.error('Error fetching order details:', error)
-      toast.error(error.message || 'Failed to fetch order details')
-      setSelectedOrder(null)
-      setIsDetailsModalOpen(false)
-      return
+      console.error('Error handling view details:', error)
+      toast.error('Failed to load complete order details')
     }
-
-    // Update the selected order with the final data and remove loading state
-    setSelectedOrder({ ...orderData, isLoading: false })
   }
+  const handlePrintOrder = async order => {
+    try {
+      const orderId = order._id || order.id
+      if (!orderId) {
+        toast.error('Invalid order data')
+        return
+      }
 
-  const handlePrint = order => {
-    setSelectedOrder(order)
-    setIsPrintModalOpen(true)
+      // Fetch complete order details if needed
+      const response = await fetch(`/api/orders/${orderId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setSelectedOrder(data) // This will include the nested structure
+      } else {
+        setSelectedOrder(order) // Use the existing order data
+      }
+
+      setIsPrintModalOpen(true)
+    } catch (error) {
+      console.error('Error preparing order for print:', error)
+      setSelectedOrder(order) // Fallback to existing order data
+      setIsPrintModalOpen(true)
+    }
   }
 
   const handleOrderUpdate = updatedOrder => {
-    setOrders(prevOrders => {
-      const orderIndex = prevOrders.findIndex(order => order._id === updatedOrder._id)
-      if (orderIndex === -1) {
-        return [updatedOrder, ...prevOrders]
-      } else {
-        const newOrders = [...prevOrders]
-        newOrders[orderIndex] = updatedOrder
-        return newOrders
-      }
-    })
+    try {
+      setOrders(prevOrders => {
+        const orderIndex = prevOrders.findIndex(order => order._id === updatedOrder._id)
+        if (orderIndex === -1) {
+          return [updatedOrder, ...prevOrders]
+        } else {
+          const newOrders = [...prevOrders]
+          newOrders[orderIndex] = { ...newOrders[orderIndex], ...updatedOrder }
+          return newOrders
+        }
+      })
 
-    if (selectedOrder?._id === updatedOrder._id) {
-      setSelectedOrder(updatedOrder)
+      if (selectedOrder?._id === updatedOrder._id) {
+        setSelectedOrder(prev => ({ ...prev, ...updatedOrder }))
+      }
+    } catch (error) {
+      console.error('Error updating order:', error)
+      toast.error('Failed to update order')
+    }
+  }
+
+  // Handle status update
+  const handleStatusUpdate = async (order, newStatus) => {
+    try {
+      // Get the correct order ID, trying multiple possible properties
+      const orderId = order._id || order.id || order.orderId
+
+      if (!orderId) {
+        toast.error('Invalid order ID')
+        return
+      }
+
+      const response = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update status')
+      }
+
+      const data = await response.json()
+
+      // Update the order in the local state
+      setOrders(prevOrders =>
+        prevOrders.map(o =>
+          o._id === orderId || o.id === orderId ? { ...o, status: newStatus } : o
+        )
+      )
+
+      toast.success('Order status updated successfully')
+    } catch (error) {
+      console.error('Error updating status:', error)
+      toast.error('Failed to update order status')
+    }
+  }
+
+  // Handle payment verification
+  const handlePaymentVerification = async (order, status) => {
+    try {
+      // Get the correct order ID, trying multiple possible properties
+      const orderId = order._id || order.id || order.orderId
+
+      if (!orderId) {
+        toast.error('Invalid order ID')
+        return
+      }
+
+      const response = await fetch(`/api/orders/${orderId}/verify-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to verify payment')
+      }
+
+      const data = await response.json()
+
+      // Update the order in the local state
+      setOrders(prevOrders =>
+        prevOrders.map(o =>
+          o._id === orderId || o.id === orderId
+            ? {
+                ...o,
+                paymentVerification: {
+                  ...o.paymentVerification,
+                  status,
+                },
+                status: status === 'verified' ? 'processing' : o.status,
+              }
+            : o
+        )
+      )
+
+      toast.success('Payment verification updated successfully')
+    } catch (error) {
+      console.error('Error verifying payment:', error)
+      toast.error('Failed to verify payment')
     }
   }
 
@@ -138,6 +248,9 @@ function OrdersTable({ initialOrders = [], currentPage = 1, totalPages = 1, onPa
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Payment
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -161,17 +274,30 @@ function OrdersTable({ initialOrders = [], currentPage = 1, totalPages = 1, onPa
                     {typeof order.amount === 'number' ? order.amount.toFixed(2) : '0.00'} MRU
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        order.status === 'completed'
-                          ? 'bg-green-100 text-green-800'
-                          : order.status === 'processing'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-gray-100 text-gray-800'
-                      }`}
+                    <select
+                      value={order.status}
+                      onChange={e => handleStatusUpdate(order, e.target.value)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     >
-                      {order.status}
-                    </span>
+                      {orderStatuses.map(status => (
+                        <option key={status} value={status}>
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <select
+                      value={order.paymentVerification?.status || 'pending'}
+                      onChange={e => handlePaymentVerification(order, e.target.value)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    >
+                      {paymentStatuses.map(status => (
+                        <option key={status} value={status}>
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
@@ -183,7 +309,7 @@ function OrdersTable({ initialOrders = [], currentPage = 1, totalPages = 1, onPa
                         <Eye className="w-5 h-5" />
                       </button>
                       <button
-                        onClick={() => handlePrint(order)}
+                        onClick={() => handlePrintOrder(order)}
                         className="text-gray-600 hover:text-gray-900 p-1 rounded-full hover:bg-gray-50"
                         title="Print Order"
                       >
@@ -252,10 +378,11 @@ function OrdersTable({ initialOrders = [], currentPage = 1, totalPages = 1, onPa
       </div>
 
       {/* Order Details Modal */}
-      <OrderDetailsModal
+      <NewOrderDetailsModal
         open={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         order={selectedOrder}
+        onStatusChange={handleOrderUpdate}
       />
 
       {/* Print Order Modal */}

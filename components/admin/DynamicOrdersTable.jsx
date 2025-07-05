@@ -74,20 +74,29 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [pollInterval, setPollInterval] = useState(30000)
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now())
   const [hasNewOrders, setHasNewOrders] = useState(false)
   const [orderFetchLoading, setOrderFetchLoading] = useState(false)
-  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [printOrder, setPrintOrder] = useState(null)
+
+  // Status options for the dropdown
+  const orderStatuses = ['pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled']
+
+  // Payment verification statuses
+  const paymentStatuses = ['pending', 'verified', 'rejected']
 
   // Get order status badge styling based on status
   const getStatusBadge = status => {
     const statusConfig = {
       pending: {
+        icon: <Clock size={14} className="mr-1" />,
+        className: 'bg-amber-100 text-amber-800 border-amber-200',
+      },
+      pending_verification: {
         icon: <Clock size={14} className="mr-1" />,
         className: 'bg-amber-100 text-amber-800 border-amber-200',
       },
@@ -221,6 +230,8 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
       amount = parseFloat(order.totalPrice)
     } else if (order.total && !isNaN(parseFloat(order.total))) {
       amount = parseFloat(order.total)
+    } else if (order.amount && !isNaN(parseFloat(order.amount))) {
+      amount = parseFloat(order.amount)
     } else if (
       order.paymentVerification?.transactionDetails?.amount &&
       !isNaN(parseFloat(order.paymentVerification.transactionDetails.amount))
@@ -255,7 +266,7 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
     return {
       id: order.id || order._id,
       orderId: order.orderId || order.id || order._id,
-      customer: order.user?.name || order.user?.email || 'Anonymous',
+      customer: order.customer || order.user?.name || order.user?.email || 'Anonymous',
       date: formattedDate,
       amount: amount,
       status: order.status || 'processing',
@@ -264,16 +275,22 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
       totalItems: order.totalItems || totalItems || order.cart?.length || 0,
       paymentMethod: order.paymentMethod || 'N/A',
       mobile: order.mobile || 'N/A',
-      address: order.address || {},
+      address: order.address || order.shippingAddress || {},
       shipping: order.shipping || {
-        address: order.address
-          ? `${order.address.street || ''}, ${order.address.city?.name || ''}`
-          : 'N/A',
+        address:
+          order.address || order.shippingAddress
+            ? `${(order.address || order.shippingAddress).street || ''}, ${(order.address || order.shippingAddress).city || ''}`
+            : 'N/A',
         trackingNumber: order.trackingNumber || 'Pending',
       },
       createdAt: order.createdAt,
       isNew: new Date(order.createdAt) > new Date(lastUpdateTime - 60000),
       paymentVerification: order.paymentVerification || null,
+      paymentStatus: order.paymentStatus || order.paymentVerification?.status || 'pending',
+      user: order.user || null,
+      subtotalBeforeDiscounts: order.subtotalBeforeDiscounts || 0,
+      totalDiscount: order.totalDiscount || 0,
+      totalPrice: order.totalPrice || amount,
       _rawData: order,
     }
   }
@@ -301,8 +318,9 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
     fetchOrders(true)
   }
 
-  // Handle view order details
-  const handleViewDetails = async order => {
+  // Handle view order details - FIXED VERSION
+  const handleViewDetails = useCallback(async order => {
+    console.log('Opening order details for:', order.orderId)
     setOrderFetchLoading(true)
 
     try {
@@ -313,18 +331,38 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
         const fullOrderData = result.data || result.order || result
 
         if (fullOrderData) {
-          const enhancedOrder = formatOrderData({
+          // Create a complete order object with all necessary data
+          const enhancedOrder = {
             ...fullOrderData,
-            orderId: order.orderId || fullOrderData.orderId,
+            id: fullOrderData.id || fullOrderData._id,
+            orderId: fullOrderData.orderId || order.orderId,
             customer:
-              order.customer ||
-              fullOrderData.user?.name ||
-              fullOrderData.user?.email ||
-              'Anonymous',
+              fullOrderData.customer || fullOrderData.user?.name || order.customer || 'Anonymous',
             date: order.date,
-            amount: order.amount,
-          })
+            amount: fullOrderData.totalPrice || fullOrderData.amount || order.amount,
+            status: fullOrderData.status || order.status,
+            items: fullOrderData.items || fullOrderData.cart || order.items || [],
+            cart: fullOrderData.cart || order.cart || [],
+            paymentMethod: fullOrderData.paymentMethod || order.paymentMethod,
+            mobile: fullOrderData.mobile || order.mobile,
+            address: fullOrderData.address || fullOrderData.shippingAddress || order.address,
+            shippingAddress:
+              fullOrderData.shippingAddress || fullOrderData.address || order.address,
+            paymentVerification: fullOrderData.paymentVerification || order.paymentVerification,
+            paymentStatus:
+              fullOrderData.paymentStatus ||
+              fullOrderData.paymentVerification?.status ||
+              order.paymentStatus ||
+              'pending',
+            user: fullOrderData.user || order.user,
+            subtotalBeforeDiscounts:
+              fullOrderData.subtotalBeforeDiscounts || order.subtotalBeforeDiscounts || 0,
+            totalDiscount: fullOrderData.totalDiscount || order.totalDiscount || 0,
+            totalPrice: fullOrderData.totalPrice || fullOrderData.amount || order.amount,
+            createdAt: fullOrderData.createdAt || order.createdAt,
+          }
 
+          console.log('Enhanced order data:', enhancedOrder)
           setSelectedOrder(enhancedOrder)
           setIsDetailsModalOpen(true)
           setOrderFetchLoading(false)
@@ -332,6 +370,8 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
         }
       }
 
+      // Fallback to using the order from table
+      console.log('Using fallback order data:', order)
       setSelectedOrder(order)
       setIsDetailsModalOpen(true)
     } catch (error) {
@@ -341,27 +381,102 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
     } finally {
       setOrderFetchLoading(false)
     }
-  }
+  }, [])
 
   // Handle print order - completely separate state management
-  const handlePrintOrder = order => {
+  const handlePrintOrder = useCallback(order => {
+    console.log('Opening print for order:', order.orderId)
     const printOrder = { ...order }
     setPrintOrder(printOrder)
     setIsPrintModalOpen(true)
-  }
+  }, [])
 
   // Handle status update from modal
-  const handleStatusUpdate = (orderId, newStatus) => {
-    setOrders(prevOrders =>
-      prevOrders.map(order => (order.id === orderId ? { ...order, status: newStatus } : order))
-    )
+  const handleStatusUpdate = async (orderId, newStatus) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
 
-    if (selectedOrder && selectedOrder.id === orderId) {
-      setSelectedOrder(prev => ({ ...prev, status: newStatus }))
+      if (!response.ok) {
+        throw new Error('Failed to update status')
+      }
+
+      const data = await response.json()
+
+      // Update the order in the local state
+      setOrders(prevOrders =>
+        prevOrders.map(order => (order._id === orderId ? { ...order, status: newStatus } : order))
+      )
+
+      toast.success('Order status updated successfully')
+    } catch (error) {
+      console.error('Error updating status:', error)
+      toast.error('Failed to update order status')
     }
-
-    toast.success(`Order status updated to: ${newStatus}`)
   }
+
+  // Handle payment verification from modal
+  const handlePaymentVerification = async (orderId, status) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}/verify-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to verify payment')
+      }
+
+      const data = await response.json()
+
+      // Update the order in the local state
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          order._id === orderId
+            ? {
+                ...order,
+                paymentVerification: {
+                  ...order.paymentVerification,
+                  status,
+                },
+                status: status === 'verified' ? 'processing' : order.status,
+              }
+            : order
+        )
+      )
+
+      toast.success('Payment verification updated successfully')
+    } catch (error) {
+      console.error('Error verifying payment:', error)
+      toast.error('Failed to verify payment')
+    }
+  }
+
+  // Handle modal close - FIXED VERSION
+  const handleDetailsModalClose = useCallback(() => {
+    console.log('Closing details modal')
+    setIsDetailsModalOpen(false)
+    // Don't immediately clear selectedOrder to prevent flash
+    setTimeout(() => {
+      setSelectedOrder(null)
+    }, 300)
+  }, [])
+
+  const handlePrintModalClose = useCallback(() => {
+    console.log('Closing print modal')
+    setIsPrintModalOpen(false)
+    setTimeout(() => {
+      setPrintOrder(null)
+    }, 300)
+  }, [])
 
   // Filter orders by search term
   const filteredOrders = searchTerm
@@ -513,18 +628,52 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
                     MRU
                   </TableCell>
                   <TableCell align="right">
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Tooltip title="Print">
-                        <IconButton onClick={() => handlePrintOrder(order)} color="primary">
-                          <PrintIcon />
-                        </IconButton>
-                      </Tooltip>
+                    <div className="flex items-center gap-2">
                       <Tooltip title="View Details">
-                        <IconButton onClick={() => handleViewDetails(order)} color="info">
-                          <VisibilityIcon />
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setSelectedOrder(order)
+                            setIsDetailsModalOpen(true)
+                          }}
+                        >
+                          <VisibilityIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                    </Box>
+                      <select
+                        className="px-2 py-1 border rounded text-sm"
+                        value={order.status}
+                        onChange={e => handleStatusUpdate(order._id, e.target.value)}
+                      >
+                        {orderStatuses.map(status => (
+                          <option key={status} value={status}>
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className="px-2 py-1 border rounded text-sm"
+                        value={order.paymentVerification?.status || 'pending'}
+                        onChange={e => handlePaymentVerification(order._id, e.target.value)}
+                      >
+                        {paymentStatuses.map(status => (
+                          <option key={status} value={status}>
+                            Payment: {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                      <Tooltip title="Print Order">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setPrintOrder(order)
+                            setIsPrintModalOpen(true)
+                          }}
+                        >
+                          <PrintIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -536,17 +685,14 @@ const DynamicOrdersTable = ({ initialOrders = [], onNewOrder }) => {
       {/* Order print modal */}
       <OrderPrintManager
         open={isPrintModalOpen}
-        onClose={() => {
-          setIsPrintModalOpen(false)
-          setPrintOrder(null)
-        }}
+        onClose={handlePrintModalClose}
         order={printOrder}
       />
 
       {/* Order details modal */}
       <OrderDetailsModal
         open={isDetailsModalOpen}
-        onClose={() => setIsDetailsModalOpen(false)}
+        onClose={handleDetailsModalClose}
         order={selectedOrder}
         onStatusUpdate={handleStatusUpdate}
       />

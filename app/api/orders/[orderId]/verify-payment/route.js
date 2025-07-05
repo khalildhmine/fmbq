@@ -1,89 +1,126 @@
 import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/helpers/db'
 import Order from '@/models/Order'
-import { isValidObjectId } from 'mongoose'
+import { verifyAuth } from '@/utils/auth'
+import { sendNotification } from '@/services/notifications.service'
 
-export async function POST(request, { params }) {
+export async function POST(request, context) {
   try {
-    const { orderId } = params
+    // Get orderId from context.params
+    const orderId = context.params.orderId
 
-    // Validate orderId
-    if (!orderId || !isValidObjectId(orderId)) {
-      return NextResponse.json({ success: false, message: 'Invalid order ID' }, { status: 400 })
-    }
-
-    // Get status from request body
-    const body = await request.json()
-    const { status } = body
-
-    if (!['verified', 'pending', 'rejected'].includes(status)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid verification status' },
-        { status: 400 }
-      )
+    // Verify authentication first
+    const authResult = await verifyAuth(request)
+    if (!authResult.success || !authResult.user || authResult.user.role !== 'admin') {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
     }
 
     // Connect to database
     await connectToDatabase()
 
-    // Find and update order
-    const order = await Order.findById(orderId)
+    // Get verification status from request body
+    const { status } = await request.json()
+
+    if (!status) {
+      return NextResponse.json(
+        { success: false, message: 'Verification status is required' },
+        { status: 400 }
+      )
+    }
+
+    // Valid verification statuses
+    const validStatuses = ['pending', 'verified', 'rejected']
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+        },
+        { status: 400 }
+      )
+    }
+
+    // Find the order and populate user data
+    const order = await Order.findById(orderId).populate('user', 'notificationToken email name')
     if (!order) {
       return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 })
     }
 
-    // Update payment verification status
-    if (!order.paymentVerification) {
-      order.paymentVerification = {}
+    // Create timeline event
+    const timelineEvent = {
+      type: 'payment_verification',
+      content: `Payment ${status === 'verified' ? 'verified' : status === 'rejected' ? 'rejected' : 'pending verification'}`,
+      userId: authResult.user._id,
+      createdAt: new Date(),
     }
 
-    order.paymentVerification.status = status
-    order.paymentVerification.verifiedAt = status === 'verified' ? new Date() : null
+    // Update order fields based on verification status
+    const updateData = {
+      paymentVerified: status === 'verified',
+      paymentVerificationStatus: status,
+      $push: { timeline: timelineEvent },
+    }
 
-    // Update order status based on verification status
+    // If payment is verified, also update order status to processing
     if (status === 'verified') {
-      order.status = 'processing'
-      order.paid = true
-      order.dateOfPayment = new Date()
-    } else if (status === 'rejected') {
-      order.status = 'cancelled'
-      order.paid = false
-      order.dateOfPayment = null
-    } else {
-      order.status = 'pending_verification'
-      order.paid = false
-      order.dateOfPayment = null
+      updateData.status = 'processing'
+      updateData.$push.timeline = [
+        timelineEvent,
+        {
+          type: 'status',
+          content: 'Order status changed from pending to processing after payment verification',
+          userId: authResult.user._id,
+          createdAt: new Date(),
+        },
+      ]
     }
 
-    // Add to timeline
-    const timelineEntry = {
-      type: 'payment',
-      content: `Payment ${status}`,
-      date: new Date(),
-      status: order.status,
+    // Update the order
+    const updatedOrder = await Order.findByIdAndUpdate(orderId, updateData, { new: true })
+
+    // Send notification to user if they have a notification token
+    if (order.user?.notificationToken) {
+      try {
+        const notificationTitle =
+          status === 'verified'
+            ? 'Payment Verified'
+            : status === 'rejected'
+              ? 'Payment Rejected'
+              : 'Payment Status Update'
+
+        const notificationBody =
+          status === 'verified'
+            ? `Your payment for order #${order.orderNumber || orderId} has been verified. Your order is now being processed.`
+            : status === 'rejected'
+              ? `Your payment for order #${order.orderNumber || orderId} has been rejected. Please check your email for details.`
+              : `Your payment for order #${order.orderNumber || orderId} is pending verification.`
+
+        await sendNotification({
+          tokens: [order.user.notificationToken],
+          title: notificationTitle,
+          body: notificationBody,
+          data: {
+            type: 'PAYMENT_VERIFICATION',
+            orderId: orderId,
+            status: status,
+            orderNumber: order.orderNumber,
+          },
+        })
+      } catch (notificationError) {
+        console.error('Failed to send notification:', notificationError)
+        // Don't fail the request if notification fails
+      }
     }
 
-    if (!order.timeline) {
-      order.timeline = []
-    }
-    order.timeline.push(timelineEntry)
-
-    // Save the order
-    await order.save()
-
-    // Return updated order
     return NextResponse.json({
       success: true,
-      message: `Payment verification ${status}`,
-      order: order.toObject(),
+      message: `Payment ${status === 'verified' ? 'verified' : status === 'rejected' ? 'rejected' : 'pending verification'}`,
+      data: updatedOrder,
     })
   } catch (error) {
     console.error('Error updating payment verification:', error)
     return NextResponse.json(
-      {
-        success: false,
-        message: error.message || 'Failed to update payment verification',
-      },
+      { success: false, message: error.message || 'Failed to update payment verification' },
       { status: 500 }
     )
   }

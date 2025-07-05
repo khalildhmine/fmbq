@@ -3,6 +3,8 @@ import { connectToDatabase } from '@/helpers/db'
 import { validateToken } from '@/helpers/auth'
 import Order from '@/models/Order'
 import { Expo } from 'expo-server-sdk'
+import { verifyAuth } from '@/utils/auth'
+import { sendNotification } from '@/services/notifications.service'
 
 const expo = new Expo()
 
@@ -39,32 +41,25 @@ async function sendOrderStatusNotification(user, order, newStatus) {
   }
 }
 
-export async function PATCH(request, { params }) {
+export async function PATCH(request, context) {
   try {
-    const { orderId } = params
-    console.log('Updating order status for:', orderId)
+    // Get orderId from context.params
+    const orderId = context.params.orderId
 
+    // Verify authentication first
+    const authResult = await verifyAuth(request)
+    if (!authResult.success || !authResult.user || authResult.user.role !== 'admin') {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Connect to database
     await connectToDatabase()
 
-    // Verify authentication
-    let authResult = await verifyAuth(request)
-
-    // For development, if authentication fails, use mock authentication
-    if (!authResult.success) {
-      console.log('Authentication failed, using mock auth for development')
-      authResult = mockAuth()
-    }
-
-    // Only admin can update order status
-    const isAdmin = authResult.user.role === 'admin'
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
-
-    // Get status from request body
+    // Get the new status from request body
     const { status } = await request.json()
+
     if (!status) {
-      return NextResponse.json({ error: 'Status is required' }, { status: 400 })
+      return NextResponse.json({ success: false, message: 'Status is required' }, { status: 400 })
     }
 
     // Valid order statuses
@@ -76,20 +71,21 @@ export async function PATCH(request, { params }) {
       'completed',
       'cancelled',
     ]
+
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         {
-          error: 'Invalid status',
-          message: `Status must be one of: ${validStatuses.join(', ')}`,
+          success: false,
+          message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
         },
         { status: 400 }
       )
     }
 
-    // Find the order and update status
-    const order = await Order.findById(orderId).populate('user', '-password')
+    // Find the order and populate user data
+    const order = await Order.findById(orderId).populate('user', 'notificationToken email name')
     if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+      return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 })
     }
 
     // Add event to timeline
@@ -109,23 +105,36 @@ export async function PATCH(request, { params }) {
       },
       { new: true }
     )
-      .populate('user', '-password')
-      .lean()
 
-    // Send notification to user about status update
-    if (order.user && order.user.notificationsEnabled) {
-      await sendOrderStatusNotification(order.user, order, status)
+    // Send notification to user if they have a notification token
+    if (order.user?.notificationToken) {
+      try {
+        await sendNotification({
+          tokens: [order.user.notificationToken],
+          title: 'Order Status Update',
+          body: `Your order #${order.orderNumber || orderId} has been ${status}`,
+          data: {
+            type: 'ORDER_STATUS',
+            orderId: orderId,
+            status: status,
+            orderNumber: order.orderNumber,
+          },
+        })
+      } catch (notificationError) {
+        console.error('Failed to send notification:', notificationError)
+        // Don't fail the request if notification fails
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Order status updated to ${status}`,
+      message: 'Order status updated successfully',
       data: updatedOrder,
     })
   } catch (error) {
     console.error('Error updating order status:', error)
     return NextResponse.json(
-      { error: 'Failed to update order status', details: error.message },
+      { success: false, message: error.message || 'Failed to update order status' },
       { status: 500 }
     )
   }

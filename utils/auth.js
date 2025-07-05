@@ -101,10 +101,10 @@ export const verifyAuth = async req => {
       return { success: false, error: 'No token provided' }
     }
 
-    // Dynamically import server-side dependencies using relative paths
-    const { verifyToken } = await import('../helpers/jwt')
-    const { connectDb } = await import('../lib/db')
-    const User = (await import('../models/User')).default
+    // Import dependencies using absolute paths
+    const { verifyToken } = await import('@/helpers/jwt')
+    const { connectToDatabase } = await import('@/helpers/db')
+    const User = (await import('@/models/User')).default
 
     const decoded = await verifyToken(token)
 
@@ -112,20 +112,19 @@ export const verifyAuth = async req => {
       return { success: false, error: 'Invalid token' }
     }
 
-    await connectDb()
-    // Check both `role` and `isAdmin` fields for robustness
+    await connectToDatabase()
     const user = await User.findById(decoded.id).select('role isAdmin').lean()
 
     if (!user) {
       return { success: false, error: 'User not found' }
     }
 
-    const isAdmin = user.role === 'admin' || user.isAdmin === true
-
     return {
       success: true,
-      userId: decoded.id,
-      isAdmin,
+      user: {
+        _id: user._id,
+        role: user.role || (user.isAdmin ? 'admin' : 'user'),
+      },
     }
   } catch (error) {
     console.error('Auth verification error:', error)

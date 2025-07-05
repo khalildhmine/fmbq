@@ -75,7 +75,10 @@ export async function GET(request, context) {
     await connectToDatabase()
 
     // Find order and populate necessary fields
-    const order = await Order.findById(orderId).populate('user', 'name email phone').lean()
+    const order = await Order.findById(orderId)
+      .populate('user', 'name email phone')
+      .populate('assignedTo', 'name email')
+      .lean()
 
     if (!order) {
       return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 })
@@ -84,11 +87,93 @@ export async function GET(request, context) {
     // Format the response
     const formattedOrder = {
       ...order,
-      items: order.items.map(item => ({
-        ...item,
-        image: item.image || '/placeholder.png',
+      // Ensure we have a valid items array
+      items: (order.items?.length > 0 ? order.items : order.cart || []).map(item => ({
+        _id: item._id || item.productID,
+        productId: item.productID || item.baseProductId,
+        name: item.name || item.title || 'Untitled Product',
+        quantity: item.quantity || 1,
+        originalPrice: item.originalPrice || item.price || 0,
+        discountedPrice: item.discountedPrice || item.finalPrice || item.price || 0,
+        price: item.price || 0,
+        image:
+          item.image ||
+          (item.images && item.images[0]?.url) ||
+          (item.img && item.img.url) ||
+          '/placeholder.png',
+        color: item.color
+          ? {
+              id: item.color.id || '',
+              name: item.color.name || '',
+              hashCode: item.color.hashCode || '',
+            }
+          : null,
+        size: item.size
+          ? {
+              id: item.size.id || '',
+              size: item.size.size || '',
+            }
+          : null,
+        discount: item.discount || 0,
+        model: item.model || 'product',
+        isMelhaf: item.isMelhaf || false,
       })),
+      // Ensure we have valid address information
+      address: {
+        street: order.address?.street || order.shippingAddress?.street || '',
+        area: order.address?.area || order.shippingAddress?.area || '',
+        city: order.address?.city || order.shippingAddress?.city || '',
+        province: order.address?.province || order.shippingAddress?.province || '',
+        postalCode: order.address?.postalCode || order.shippingAddress?.postalCode || '',
+      },
+      // Ensure we have valid customer information
+      customer: order.user?.name || 'Anonymous',
+      mobile: order.mobile || order.user?.phone || '',
+      // Ensure we have valid payment information
+      paymentMethod: order.paymentMethod || 'N/A',
+      paymentStatus: order.paymentVerification?.status || 'pending',
+      amount: order.totalPrice || 0,
+      // Ensure we have valid dates
+      createdAt: order.createdAt || new Date(),
+      updatedAt: order.updatedAt || new Date(),
+      // Ensure we have valid status
+      status: order.status || 'pending',
+      // Include payment verification if available
+      paymentVerification: order.paymentVerification
+        ? {
+            status: order.paymentVerification.status || 'pending',
+            image: order.paymentVerification.image || null,
+            verifiedAt: order.paymentVerification.verifiedAt || null,
+            verificationNote: order.paymentVerification.verificationNote || '',
+            transactionId: order.paymentVerification.transactionId || '',
+            amount: order.paymentVerification.amount || order.totalPrice || 0,
+          }
+        : null,
+      // Include tracking information
+      tracking: (order.tracking || []).map(track => ({
+        status: track.status || '',
+        date: track.date || new Date(),
+        location: track.location || '',
+        description: track.description || '',
+      })),
+      // Include timeline
+      timeline: (order.timeline || []).map(event => ({
+        type: event.type || '',
+        content: event.content || '',
+        userId: event.userId || null,
+        createdAt: event.createdAt || new Date(),
+      })),
+      // Include totals
+      totalItems: order.totalItems || 0,
+      totalPrice: order.totalPrice || 0,
+      subtotalBeforeDiscounts: order.subtotalBeforeDiscounts || order.totalPrice || 0,
+      totalDiscount: order.totalDiscount || 0,
+      // Include delivery status
+      delivered: order.delivered || false,
+      paid: order.paid || false,
     }
+
+    console.log('Formatted order:', JSON.stringify(formattedOrder, null, 2)) // Debug log
 
     return NextResponse.json({
       success: true,
