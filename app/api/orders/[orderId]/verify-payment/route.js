@@ -41,7 +41,10 @@ export async function POST(request, context) {
     }
 
     // Find the order and populate user data
-    const order = await Order.findById(orderId).populate('user', 'notificationToken email name')
+    const order = await Order.findById(orderId).populate(
+      'user',
+      'expoPushToken pushToken notificationSettings email name'
+    )
     if (!order) {
       return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 })
     }
@@ -78,8 +81,14 @@ export async function POST(request, context) {
     // Update the order
     const updatedOrder = await Order.findByIdAndUpdate(orderId, updateData, { new: true })
 
+    // Get the active push token using the virtual getter or fallback to other token fields
+    const pushToken =
+      order.user?.pushToken ||
+      order.user?.expoPushToken ||
+      order.user?.notificationSettings?.expoPushToken
+
     // Send notification to user if they have a notification token
-    if (order.user?.notificationToken) {
+    if (pushToken) {
       try {
         const notificationTitle =
           status === 'verified'
@@ -96,7 +105,7 @@ export async function POST(request, context) {
               : `Your payment for order #${order.orderNumber || orderId} is pending verification.`
 
         await sendNotification({
-          tokens: [order.user.notificationToken],
+          tokens: [pushToken],
           title: notificationTitle,
           body: notificationBody,
           data: {
