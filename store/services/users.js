@@ -1,6 +1,6 @@
-import { api } from './api'
+import { enhancedApi } from './baseApi'
 
-const usersApi = api.injectEndpoints({
+const usersApi = enhancedApi.injectEndpoints({
   endpoints: builder => ({
     getUsers: builder.query({
       query: ({ page = 1, limit = 10 }) => ({

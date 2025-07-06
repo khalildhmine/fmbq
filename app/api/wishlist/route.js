@@ -2,7 +2,7 @@ import joi from 'joi'
 import Wishlist from '@/models/Wishlist'
 import mongoose from 'mongoose'
 import { apiHandler, setJson } from '@/helpers/api/api-handler'
-import { Product } from '@/models'
+import Product from '@/models/Product'
 
 const getWishlist = apiHandler(
   async req => {
@@ -24,7 +24,10 @@ const getWishlist = apiHandler(
       }
 
       // Fetch wishlist items and populate product
-      const wishlistItems = await Wishlist.find({ user: userId }).populate('product')
+      const wishlistItems = await Wishlist.find({ user: userId }).populate({
+        path: 'product',
+        model: 'product', // Use lowercase to match Product.js registration
+      })
 
       // Defensive: filter out items with null product to avoid .images error
       const safeWishlist = wishlistItems
@@ -71,11 +74,6 @@ export async function POST(req) {
       )
     }
 
-    // Before using Product in any population or reference, ensure it's registered:
-    if (!mongoose.models.Product) {
-      mongoose.model('Product', Product.schema)
-    }
-
     const existing = await Wishlist.findOne({
       user: userId,
       product: productId,
@@ -95,7 +93,11 @@ export async function POST(req) {
     })
 
     const populated = await Wishlist.findById(item._id)
-      .populate('product', '_id title price image')
+      .populate({
+        path: 'product',
+        model: 'product',
+        select: '_id title price images',
+      })
       .lean()
 
     return setJson({

@@ -1,6 +1,6 @@
-import { api } from './api'
+import { enhancedApi } from './baseApi'
 
-export const sliderApi = api.injectEndpoints({
+export const sliderApi = enhancedApi.injectEndpoints({
   endpoints: builder => ({
     getSliders: builder.query({
       query: (category = 'all') => ({
