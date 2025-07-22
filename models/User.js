@@ -1,6 +1,15 @@
 import mongoose from 'mongoose'
 import basePlugin from './base_model'
 
+const addressSchema = new mongoose.Schema({
+  streetAddress: { type: String, required: true },
+  province: { type: String, required: true },
+  city: { type: String, required: true },
+  area: { type: String },
+  postalCode: { type: String, default: '0000' },
+  updatedAt: { type: Date, default: Date.now },
+})
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -35,19 +44,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    address: {
-      type: new mongoose.Schema(
-        {
-          street: { type: String, trim: true },
-          province: { type: String, trim: true },
-          city: { type: String, trim: true },
-          area: { type: String, trim: true },
-          postalCode: { type: String, trim: true },
-        },
-        { _id: false }
-      ),
-      default: null,
-    },
+    // address: {
+    //   type: new mongoose.Schema(
+    //     {
+    //       street: { type: String, trim: true },
+    //       province: { type: String, trim: true },
+    //       city: { type: String, trim: true },
+    //       area: { type: String, trim: true },
+    //       postalCode: { type: String, trim: true },
+    //     },
+    //     { _id: false }
+    //   ),
+    //   default: null,
+    // },
     isVerified: {
       type: Boolean,
       default: false,
@@ -57,6 +66,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // THIS IS THE ADDRESSES :
+    address: addressSchema,
+    addresses: [addressSchema],
+
     notificationsEnabled: {
       type: Boolean,
       default: true,
@@ -148,6 +162,22 @@ userSchema.methods.redeemCoins = async function (amount, orderId) {
     createdAt: new Date(),
   })
   await this.save()
+}
+
+// Static method to update push token for a user
+userSchema.statics.updatePushToken = async function (userId, token) {
+  if (!userId || !token) return null
+  return await this.findByIdAndUpdate(
+    userId,
+    {
+      expoPushToken: token,
+      pushToken: token,
+      'notificationSettings.expoPushToken': token,
+      'notificationSettings.enabled': true,
+      notificationsEnabled: true,
+    },
+    { new: true }
+  )
 }
 
 // Ensure the model is only compiled once

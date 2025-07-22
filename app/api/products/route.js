@@ -1,6 +1,6 @@
 import joi from 'joi'
 import { ObjectId } from 'mongodb'
-import { connectToDatabase } from '@/lib/mongoose'
+import { connectToDatabase, isDbConnected } from '@/lib/mongoose'
 import { getQuery } from '@/helpers/api'
 import { NextResponse } from 'next/server'
 import { Category } from '@/models'
@@ -27,6 +27,10 @@ const errorHandler = err => {
 const apiHandler = (handler, options = {}) => {
   return async req => {
     try {
+      // Ensure database connection
+      if (!isDbConnected()) {
+        await connectToDatabase()
+      }
       // Call the handler function
       return await handler(req)
     } catch (error) {
@@ -325,6 +329,12 @@ const getProductsByCategories = apiHandler(async req => {
 
 export async function GET(request) {
   try {
+    // Ensure database connection is established
+    if (!isDbConnected()) {
+      console.log('Establishing database connection...')
+      await connectToDatabase()
+    }
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page')) || 1
     const limit = parseInt(searchParams.get('limit')) || 20
@@ -355,6 +365,13 @@ export async function GET(request) {
 
     const skip = (page - 1) * limit
 
+    console.log('Executing product query with:', {
+      filter,
+      sortOptions,
+      skip,
+      limit,
+    })
+
     // Get products with filters
     const products = await Product.find(filter)
       .sort(sortOptions)
@@ -384,7 +401,8 @@ export async function GET(request) {
     return NextResponse.json(
       {
         success: false,
-        message: 'Failed to search products',
+        message: error.message || 'Failed to search products',
+        error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     )

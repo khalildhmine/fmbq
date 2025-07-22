@@ -1,107 +1,244 @@
-import { NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
-import { connect } from '@/helpers/db'
-import User from '@/models/User'
+import { connectToDatabase } from '@/helpers/db'
+import { ObjectId } from 'mongodb'
+import { setJson } from '@/helpers/api'
+import joi from 'joi'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+// Address validation schema
+const addressSchema = joi.object({
+  fullName: joi.string().required(),
+  phone: joi
+    .string()
+    .required()
+    .pattern(/^(?:\+?222)?[234567]\d{7}$/), // Mauritanian phone numbers
+  streetAddress: joi.string().required(),
+  city: joi.string().required(),
+  province: joi.string().allow(''), // Optional for Mauritania
+  area: joi.string().allow(''), // Optional
+  postalCode: joi.string().default('0000'), // Optional with default
+  isDefault: joi.boolean().default(false),
+})
 
-const verifyToken = token => {
-  try {
-    return jwt.verify(token, JWT_SECRET)
-  } catch (error) {
-    console.error('Token verification failed:', error)
+// Helper to get user ID from request
+const getUserIdFromRequest = req => {
+  const userId = req.headers.get('userid') || req.headers.get('x-user-id')
+  if (!userId) {
+    console.log('No user ID found in headers')
     return null
   }
+  console.log('Using user ID from header:', userId)
+  return userId
 }
 
+// GET endpoint to fetch user addresses
 export async function GET(req) {
   try {
-    const token = req.headers.get('authorization')?.split(' ')[1]
-    if (!token) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+    console.log('GET /api/user/addresses - Request received')
+    const userId = getUserIdFromRequest(req)
+    if (!userId) {
+      return setJson({ message: 'Unauthorized - Cannot identify user' }, 401)
     }
 
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
+    const { db } = await connectToDatabase()
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) })
+    if (!user) {
+      return setJson({ message: 'User not found' }, 404)
     }
 
-    await connect()
-    const user = await User.findById(decoded.id)
-
-    // Transform user address into array format
-    const addresses = user?.address
-      ? [
-          {
-            _id: user._id,
-            fullName: user.name,
-            phone: user.mobile,
-            province: user.address.province,
-            city: user.address.city,
-            area: user.address.area,
-            streetAddress: user.address.street,
-            postalCode: user.address.postalCode,
-            isDefault: true,
-          },
-        ]
-      : []
-
-    return NextResponse.json({
-      success: true,
-      data: addresses,
-    })
+    const addresses = user.addresses || []
+    return setJson({ data: addresses }, 200)
   } catch (error) {
-    console.error('Error in GET /api/user/addresses:', error)
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+    console.error('GET /api/user/addresses error:', error)
+    return setJson({ message: error.message || 'Internal server error' }, 500)
   }
 }
 
+// POST endpoint to add a new address
+export async function POST(req) {
+  try {
+    console.log('POST /api/user/addresses - Request received')
+    const userId = getUserIdFromRequest(req)
+    if (!userId) {
+      return setJson({ message: 'Unauthorized - Cannot identify user' }, 401)
+    }
+
+    const body = await req.json()
+    console.log('Request body:', body)
+
+    const { error, value: address } = addressSchema.validate(body, {
+      abortEarly: false,
+      stripUnknown: true,
+    })
+
+    if (error) {
+      console.error('Validation error:', error.details)
+      return setJson(
+        {
+          message: 'Invalid address data',
+          errors: error.details.map(detail => detail.message),
+        },
+        400
+      )
+    }
+
+    const { db } = await connectToDatabase()
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) })
+    if (!user) {
+      return setJson({ message: 'User not found' }, 404)
+    }
+
+    const newAddress = {
+      ...address,
+      _id: new ObjectId(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    const addresses = user.addresses || []
+    if (newAddress.isDefault) {
+      addresses.forEach(addr => (addr.isDefault = false))
+    } else if (addresses.length === 0) {
+      newAddress.isDefault = true
+    }
+
+    addresses.push(newAddress)
+
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          addresses,
+          updatedAt: new Date(),
+        },
+      }
+    )
+
+    return setJson({ data: newAddress }, 201)
+  } catch (error) {
+    console.error('POST /api/user/addresses error:', error)
+    return setJson({ message: error.message || 'Internal server error' }, 500)
+  }
+}
+
+// PUT endpoint to update an address
 export async function PUT(req) {
   try {
-    const token = req.headers.get('authorization')?.split(' ')[1]
-    if (!token) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+    console.log('PUT /api/user/addresses - Request received')
+    const userId = getUserIdFromRequest(req)
+    if (!userId) {
+      return setJson({ message: 'Unauthorized - Cannot identify user' }, 401)
     }
 
-    const decoded = verifyToken(token)
     const body = await req.json()
+    const { _id, ...addressData } = body
 
-    await connect()
-    const user = await User.findById(decoded.id)
-
-    if (!user) {
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
+    if (!_id) {
+      return setJson({ message: 'Address ID is required' }, 400)
     }
 
-    // Update user address with the correct structure
-    user.address = {
-      street: body.street,
-      province: body.province,
-      city: body.city,
-      area: body.area,
-      postalCode: body.postalCode,
-    }
-
-    await user.save()
-
-    return NextResponse.json({
-      success: true,
-      data: [
+    const { error, value: address } = addressSchema.validate(addressData)
+    if (error) {
+      return setJson(
         {
-          _id: user._id,
-          fullName: user.name,
-          phone: user.mobile,
-          province: user.address.province,
-          city: user.address.city,
-          area: user.address.area,
-          streetAddress: user.address.street,
-          postalCode: user.address.postalCode,
-          isDefault: true,
+          message: 'Invalid address data',
+          errors: error.details.map(detail => detail.message),
         },
-      ],
-    })
+        400
+      )
+    }
+
+    const { db } = await connectToDatabase()
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) })
+    if (!user) {
+      return setJson({ message: 'User not found' }, 404)
+    }
+
+    const addresses = user.addresses || []
+    const addressIndex = addresses.findIndex(addr => addr._id.toString() === _id)
+    if (addressIndex === -1) {
+      return setJson({ message: 'Address not found' }, 404)
+    }
+
+    if (address.isDefault) {
+      addresses.forEach(addr => (addr.isDefault = false))
+    }
+
+    addresses[addressIndex] = {
+      ...addresses[addressIndex],
+      ...address,
+      updatedAt: new Date(),
+    }
+
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          addresses,
+          updatedAt: new Date(),
+        },
+      }
+    )
+
+    return setJson({ data: addresses[addressIndex] }, 200)
   } catch (error) {
     console.error('Error in PUT /api/user/addresses:', error)
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+    return setJson({ message: error.message || 'Internal server error' }, 500)
   }
 }
+
+// DELETE endpoint to remove an address
+export async function DELETE(req) {
+  try {
+    console.log('DELETE /api/user/addresses - Request received')
+    const userId = getUserIdFromRequest(req)
+    if (!userId) {
+      return setJson({ message: 'Unauthorized - Cannot identify user' }, 401)
+    }
+
+    const url = new URL(req.url)
+    const addressId = url.searchParams.get('id')
+    if (!addressId) {
+      return setJson({ message: 'Address ID is required' }, 400)
+    }
+
+    const { db } = await connectToDatabase()
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) })
+    if (!user) {
+      return setJson({ message: 'User not found' }, 404)
+    }
+
+    const addresses = user.addresses || []
+    const addressIndex = addresses.findIndex(addr => addr._id.toString() === addressId)
+    if (addressIndex === -1) {
+      return setJson({ message: 'Address not found' }, 404)
+    }
+
+    const wasDefault = addresses[addressIndex].isDefault
+
+    if (wasDefault && addresses.length === 1) {
+      return setJson({ message: 'Cannot delete the only address' }, 400)
+    }
+
+    addresses.splice(addressIndex, 1)
+
+    if (wasDefault && addresses.length > 0) {
+      addresses[0].isDefault = true
+    }
+
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          addresses,
+          updatedAt: new Date(),
+        },
+      }
+    )
+
+    return setJson({ message: 'Address deleted successfully' }, 200)
+  } catch (error) {
+    console.error('DELETE /api/user/addresses error:', error)
+    return setJson({ message: error.message || 'Internal server error' }, 500)
+  }
+}
+
+export const dynamic = 'force-dynamic'

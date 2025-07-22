@@ -42,8 +42,9 @@ import {
   Sun,
   Shirt,
   Video,
+  Presentation,
 } from 'lucide-react'
-import { Box, IconButton, Tooltip as MuiTooltip, useTheme } from '@mui/material'
+import { Box, IconButton, Tooltip as MuiTooltip, Slider, useTheme } from '@mui/material'
 
 const menuItems = [
   {
@@ -68,6 +69,12 @@ const menuItems = [
     label: 'Orders',
     icon: ClipboardList,
     path: '/admin/orders',
+  },
+  {
+    id: 'Sliders',
+    label: 'Sliders',
+    icon: Presentation,
+    path: '/admin/sliders',
   },
   {
     id: 'customers',

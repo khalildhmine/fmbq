@@ -1,354 +1,230 @@
-// 'use client'
-
-// import { useState, useEffect } from 'react'
-// import { useRouter } from 'next/navigation'
-
-// export default function SendNotification() {
-//   const router = useRouter()
-//   const [formData, setFormData] = useState({
-//     title: '',
-//     message: '',
-//     type: 'all', // all, specific
-//     userIds: [], // for specific users
-//     link: '', // optional link to product/category/etc
-//     scheduledFor: '', // optional scheduled time
-//   })
-//   const [loading, setLoading] = useState(false)
-//   const [error, setError] = useState(null)
-//   const [success, setSuccess] = useState(false)
-//   const [isAuthenticated, setIsAuthenticated] = useState(false)
-
-//   useEffect(() => {
-//     const checkAuth = async () => {
-//       try {
-//         // Verify the user's authentication status
-//         const response = await fetch('/api/auth/user')
-//         const data = await response.json()
-
-//         if (!response.ok || !data.success || data.data?.role !== 'admin') {
-//           router.replace('/login')
-//           return
-//         }
-
-//         setIsAuthenticated(true)
-//       } catch (err) {
-//         console.error('Auth check failed:', err)
-//         router.replace('/login')
-//       }
-//     }
-
-//     checkAuth()
-//   }, [router])
-
-//   const handleSubmit = async e => {
-//     e.preventDefault()
-//     setError(null)
-//     setSuccess(false)
-//     setLoading(true)
-
-//     try {
-//       const response = await fetch('/api/admin/notifications/send', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify(formData),
-//       })
-
-//       const data = await response.json()
-//       if (response.ok) {
-//         setSuccess(true)
-//         setFormData({
-//           title: '',
-//           message: '',
-//           type: 'all',
-//           userIds: [],
-//           link: '',
-//           scheduledFor: '',
-//         })
-//       } else {
-//         if (response.status === 401) {
-//           router.replace('/login')
-//           return
-//         }
-//         throw new Error(data.error || data.message || 'Failed to send notification')
-//       }
-//     } catch (err) {
-//       setError(err.message)
-//     } finally {
-//       setLoading(false)
-//     }
-//   }
-
-//   if (!isAuthenticated) {
-//     return (
-//       <div className="flex items-center justify-center min-h-screen">
-//         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-//       </div>
-//     )
-//   }
-
-//   return (
-//     <div className="p-6">
-//       <h1 className="text-2xl font-semibold mb-6">Send Notification</h1>
-
-//       {error && <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">{error}</div>}
-
-//       {success && (
-//         <div className="bg-green-50 text-green-600 p-4 rounded-lg mb-6">
-//           Notification sent successfully!
-//         </div>
-//       )}
-
-//       <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
-//         <div>
-//           <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-//           <input
-//             type="text"
-//             required
-//             value={formData.title}
-//             onChange={e => setFormData({ ...formData, title: e.target.value })}
-//             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-//             placeholder="Notification title"
-//           />
-//         </div>
-
-//         <div>
-//           <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
-//           <textarea
-//             required
-//             value={formData.message}
-//             onChange={e => setFormData({ ...formData, message: e.target.value })}
-//             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-//             rows="4"
-//             placeholder="Notification message"
-//           />
-//         </div>
-
-//         <div>
-//           <label className="block text-sm font-medium text-gray-700 mb-2">Recipients</label>
-//           <select
-//             value={formData.type}
-//             onChange={e => setFormData({ ...formData, type: e.target.value })}
-//             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-//           >
-//             <option value="all">All Users</option>
-//             <option value="specific">Specific Users</option>
-//           </select>
-//         </div>
-
-//         <div>
-//           <label className="block text-sm font-medium text-gray-700 mb-2">Link (Optional)</label>
-//           <input
-//             type="text"
-//             value={formData.link}
-//             onChange={e => setFormData({ ...formData, link: e.target.value })}
-//             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-//             placeholder="https://..."
-//           />
-//         </div>
-
-//         <div>
-//           <label className="block text-sm font-medium text-gray-700 mb-2">
-//             Schedule For (Optional)
-//           </label>
-//           <input
-//             type="datetime-local"
-//             value={formData.scheduledFor}
-//             onChange={e => setFormData({ ...formData, scheduledFor: e.target.value })}
-//             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-//           />
-//         </div>
-
-//         <div>
-//           <button
-//             type="submit"
-//             disabled={loading}
-//             className={`w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-//               loading ? 'opacity-50 cursor-not-allowed' : ''
-//             }`}
-//           >
-//             {loading ? 'Sending...' : 'Send Notification'}
-//           </button>
-//         </div>
-//       </form>
-//     </div>
-//   )
-// }
-
 'use client'
-
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 export default function SendNotification() {
-  const router = useRouter()
   const [formData, setFormData] = useState({
     title: '',
-    message: '',
-    type: 'all', // all, specific
-    userIds: [], // for specific users
-    link: '', // optional link to product/category/etc
-    scheduledFor: '', // optional scheduled time
+    body: '',
+    type: 'all',
+    image: '',
   })
+  const [tokens, setTokens] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [message, setMessage] = useState({ type: '', text: '' })
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/auth/user')
-        const data = await response.json()
+    fetchTokens()
+  }, [])
 
-        if (!response.ok || !data.success || data.data?.role !== 'admin') {
-          router.replace('/login')
-          return
-        }
-
-        setIsAuthenticated(true)
-      } catch (err) {
-        console.error('Auth check failed:', err)
-        router.replace('/login')
+  const fetchTokens = async () => {
+    try {
+      const res = await fetch('/api/notifications/tokens')
+      const data = await res.json()
+      if (data.success && Array.isArray(data.tokens)) {
+        setTokens(data.tokens)
+      } else {
+        setTokens([])
       }
+    } catch (error) {
+      setTokens([])
+      console.error('Error fetching tokens:', error)
     }
-
-    checkAuth()
-  }, [router])
+  }
 
   const handleSubmit = async e => {
     e.preventDefault()
-    setError(null)
-    setSuccess(false)
     setLoading(true)
-
     try {
-      const response = await fetch('/api/admin/notifications/send', {
+      const res = await fetch('/api/notifications/send', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          tokens: tokens
+            .filter(token => {
+              if (formData.type === 'all') return true
+              if (formData.type === 'registered') return !!token.userId
+              if (formData.type === 'anonymous') return !token.userId
+              return false
+            })
+            .map(t => t.token),
+        }),
       })
 
-      const data = await response.json()
-      if (response.ok) {
-        setSuccess(true)
-        setFormData({
-          title: '',
-          message: '',
-          type: 'all',
-          userIds: [],
-          link: '',
-          scheduledFor: '',
+      const data = await res.json()
+
+      if (data.success) {
+        setMessage({
+          type: 'success',
+          text: `Successfully sent to ${data.sentCount} devices`,
         })
+        setFormData({ title: '', body: '', type: 'all', image: '' })
       } else {
-        if (response.status === 401) {
-          router.replace('/login')
-          return
-        }
-        throw new Error(data.error || data.message || 'Failed to send notification')
+        throw new Error(data.message)
       }
-    } catch (err) {
-      setError(err.message)
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error.message || 'Failed to send notification',
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  if (!isAuthenticated) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    )
-  }
-
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-6">Send Notification</h1>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">Send Notifications</h1>
 
-      {error && <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">{error}</div>}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Target Users</label>
+            <select
+              value={formData.type}
+              onChange={e => setFormData(prev => ({ ...prev, type: e.target.value }))}
+              className="w-full p-2 border rounded-md"
+            >
+              <option value="all">All Users ({tokens.length})</option>
+              <option value="registered">
+                Registered Users ({tokens.filter(t => t.userId).length})
+              </option>
+              <option value="anonymous">
+                Anonymous Users ({tokens.filter(t => !t.userId).length})
+              </option>
+            </select>
+          </div>
 
-      {success && (
-        <div className="bg-green-50 text-green-600 p-4 rounded-lg mb-6">
-          Notification sent successfully!
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-medium mb-2">Notification Title</label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Enter notification title"
+              className="w-full p-2 border rounded-md"
+            />
+          </div>
 
-      <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-          <input
-            type="text"
-            required
-            value={formData.title}
-            onChange={e => setFormData({ ...formData, title: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Notification title"
-          />
-        </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Notification Message</label>
+            <textarea
+              value={formData.body}
+              onChange={e => setFormData(prev => ({ ...prev, body: e.target.value }))}
+              placeholder="Enter notification message"
+              className="w-full p-2 border rounded-md h-24"
+            />
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
-          <textarea
-            required
-            value={formData.message}
-            onChange={e => setFormData({ ...formData, message: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            rows="4"
-            placeholder="Notification message"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Recipients</label>
-          <select
-            value={formData.type}
-            onChange={e => setFormData({ ...formData, type: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">All Users</option>
-            <option value="specific">Specific Users</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Link (Optional)</label>
-          <input
-            type="text"
-            value={formData.link}
-            onChange={e => setFormData({ ...formData, link: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            placeholder="https://..."
-          />
+          <div>
+            <label className="block text-sm font-medium mb-2">Image URL (Optional)</label>
+            <input
+              type="text"
+              value={formData.image}
+              onChange={e => setFormData(prev => ({ ...prev, image: e.target.value }))}
+              placeholder="Enter image URL"
+              className="w-full p-2 border rounded-md"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Schedule For (Optional)
-          </label>
-          <input
-            type="datetime-local"
-            value={formData.scheduledFor}
-            onChange={e => setFormData({ ...formData, scheduledFor: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-
-        <div>
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-              loading ? 'opacity-50 cursor-not-allowed' : ''
+        {message.text && (
+          <div
+            className={`p-4 rounded-md ${
+              message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
             }`}
           >
-            {loading ? 'Sending...' : 'Send Notification'}
-          </button>
-        </div>
+            {message.text}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className={`w-full py-2 px-4 rounded-md text-white font-medium ${
+            loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
+          {loading ? 'Sending...' : 'Send Notification'}
+        </button>
       </form>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4">Registered Tokens</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="p-3 text-left border">Token</th>
+                <th className="p-3 text-left border">User Type</th>
+                <th className="p-3 text-left border">User Details</th>
+                <th className="p-3 text-left border">Device Info</th>
+                <th className="p-3 text-left border">Last Active</th>
+                <th className="p-3 text-left border">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tokens.map(token => (
+                <tr key={token._id} className="border-t">
+                  <td className="p-3 border text-sm truncate max-w-xs">{token.token}</td>
+                  <td className="p-3 border">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        token.userId ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {token.userId ? 'Registered' : 'Anonymous'}
+                    </span>
+                  </td>
+                  <td className="p-3 border text-sm">
+                    {token.userId && token.user
+                      ? (
+                        <div>
+                          <div><b>Name:</b> {token.user.name || '-'}</div>
+                          <div><b>Email:</b> {token.user.email || '-'}</div>
+                          <div><b>Mobile:</b> {token.user.mobile || '-'}</div>
+                        </div>
+                      )
+                      : <span className="text-gray-400">-</span>
+                    }
+                  </td>
+                  <td className="p-3 border text-sm">
+                    {token.deviceInfo?.brand} {token.deviceInfo?.modelName}
+                  </td>
+                  <td className="p-3 border text-sm">
+                    {token.lastActiveAt
+                      ? new Date(token.lastActiveAt).toLocaleDateString()
+                      : ''}
+                  </td>
+                  <td className="p-3 border">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={token.isActive}
+                        onChange={async () => {
+                          try {
+                            await fetch(`/api/notifications/tokens/${token._id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ isActive: !token.isActive }),
+                            })
+                            fetchTokens()
+                          } catch (error) {
+                            console.error('Error updating token status:', error)
+                          }
+                        }}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

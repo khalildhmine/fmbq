@@ -66,12 +66,11 @@ export async function GET(request) {
       Order.countDocuments(query),
     ])
 
-    console.log('Found orders:', orders.length)
-
     // Transform orders to ensure proper amount formatting
     const transformedOrders = orders.map(order => ({
       ...order,
       totalPrice: parseFloat(order.totalPrice || 0),
+      cart: order.cart || order.products || [], // Ensure cart field exists
     }))
 
     return NextResponse.json({
@@ -110,7 +109,7 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Unauthorized access' }, { status: 401 })
     }
 
-    const { userId, products, totalPrice } = await request.json()
+    const { userId, cart, totalPrice } = await request.json()
 
     // Connect to database
     await connectToDatabase()
@@ -118,7 +117,7 @@ export async function POST(request) {
     // Create a new order
     const order = new Order({
       user: userId,
-      products,
+      cart,
       totalPrice,
       createdAt: new Date(),
     })

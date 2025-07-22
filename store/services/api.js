@@ -5,8 +5,8 @@ const apiSlice = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: '',
     prepareHeaders: (headers, { getState }) => {
-      const token = getState().user.token
-      if (token) headers.set('authorization', token)
+      const token = getState().auth.token
+      if (token) headers.set('authorization', `Bearer ${token}`)
       return headers
     },
   }),
@@ -20,11 +20,12 @@ const apiSlice = createApi({
     'Slider',
     'Banner',
     'Wishlist',
+    'Address',
   ],
   endpoints: builder => ({
     // Order endpoints
     getOrders: builder.query({
-      query: ({ page = 1, pageSize = 10 }) => ({
+      query: ({ page = 1, pageSize = 10 } = {}) => ({
         url: `/api/orders?page=${page}&page_size=${pageSize}`,
         method: 'GET',
       }),

@@ -1,7 +1,8 @@
-import { createServer } from 'http'
-import { parse } from 'url'
-import next from 'next'
-import { Server } from 'socket.io'
+const { createServer } = require('http')
+const { parse } = require('url')
+const next = require('next')
+const path = require('path')
+const { initSocketIO } = require('./lib/socketio')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
@@ -13,27 +14,12 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl)
   })
 
-  const io = new Server(server, {
-    cors: {
-      origin: '*',
-      methods: ['GET', 'POST'],
-    },
-  })
+  // Initialize Socket.IO with our HTTP server
+  initSocketIO(server)
 
-  // Socket.IO event handlers
-  io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id)
-
-    socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id)
-    })
-
-    // Add your custom socket events here
-  })
-
-  const PORT = process.env.PORT || 3000
-  server.listen(PORT, (err) => {
+  const port = process.env.PORT || 3000
+  server.listen(port, err => {
     if (err) throw err
-    console.log(`> Ready on http://localhost:${PORT}`)
+    console.log(`> Ready on http://localhost:${port}`)
   })
 })
