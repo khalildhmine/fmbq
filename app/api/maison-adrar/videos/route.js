@@ -14,6 +14,10 @@ export async function GET(request) {
     const sortBy = searchParams.get('sortBy') || 'createdAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
+    // Connect to database first to ensure connection is established
+    await connectToDatabase()
+    console.log('Connected to database for video fetch')
+
     // Calculate pagination values
     const skip = (page - 1) * limit
 
@@ -39,18 +43,26 @@ export async function GET(request) {
     // Filter for published videos only
     filter.status = 'published'
 
+    console.log('Video filter:', JSON.stringify(filter))
+    console.log('Sort options:', sortBy, sortOrder)
+
     // Build sort object
     const sort = {}
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1
 
-    // Connect to database
-    await connectToDatabase()
-
     // Get total count for pagination
     const total = await MaisonAdrarVideo.countDocuments(filter)
+    console.log(`Found ${total} videos matching criteria`)
 
     // Fetch videos with pagination, filtering and sorting
-    const videos = await MaisonAdrarVideo.find(filter).sort(sort).skip(skip).limit(limit).lean()
+    const videos = await MaisonAdrarVideo.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec()
+
+    console.log(`Returning ${videos.length} videos for page ${page}`)
 
     // Calculate pagination data
     const totalPages = Math.ceil(total / limit)

@@ -66,6 +66,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Add push notification tokens field
+    pushTokens: {
+      type: [String],
+      default: [],
+    },
 
     // THIS IS THE ADDRESSES :
     address: addressSchema,

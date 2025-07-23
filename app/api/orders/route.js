@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/helpers/db'
 import Order from '@/models/Order'
 import User from '@/models/User'
 import { verifyAuth } from '@/lib/auth'
+import { sendOrderConfirmationNotification } from '@/utils/notifications'
 
 export async function GET(request) {
   let authResult
@@ -100,34 +101,70 @@ export async function GET(request) {
 
 // Only ONE POST export allowed!
 export async function POST(request) {
-  let authResult
-
   try {
     // Verify auth first
-    authResult = await verifyAuth(request)
+    const authResult = await verifyAuth(request)
     if (!authResult.success) {
       return NextResponse.json({ success: false, message: 'Unauthorized access' }, { status: 401 })
     }
 
-    const { userId, cart, totalPrice } = await request.json()
-
     // Connect to database
     await connectToDatabase()
 
-    // Create a new order
+    // Parse the request body
+    const body = await request.json()
+    console.log('Received order data:', body)
+
+    // Generate an order ID if not provided
+    const orderId = body.orderId || `ORD-${Math.floor(Math.random() * 1000000)
+      .toString()
+      .padStart(6, '0')}-${Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0')}`
+
+    // Create a new order with all the fields from the request
     const order = new Order({
-      user: userId,
-      cart,
-      totalPrice,
+      ...body,
+      orderId,
       createdAt: new Date(),
+      status: body.status || 'pending_verification',
+      tracking: body.tracking || [
+        {
+          status: 'pending_verification',
+          description: 'Awaiting payment verification',
+          location: 'order.received',
+          date: new Date().toISOString(),
+        },
+      ],
     })
 
     // Save the order to the database
-    await order.save()
+    const savedOrder = await order.save()
 
-    console.log('Order created:', order)
+    console.log('Order created:', savedOrder.orderId)
 
-    return NextResponse.json({ success: true, data: order }, { status: 201 })
+    // Send push notification to the user
+    try {
+      // Get the user's push tokens
+      const user = await User.findById(body.user);
+      if (user && user.pushTokens && user.pushTokens.length > 0) {
+        await sendOrderConfirmationNotification(user.pushTokens, savedOrder);
+        console.log('Order confirmation notification sent to user');
+      } else {
+        console.log('No push tokens found for user, notification not sent');
+      }
+    } catch (notificationError) {
+      // Don't fail the order creation if notification fails
+      console.error('Error sending order notification:', notificationError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        orderId: savedOrder._id,
+        orderNumber: savedOrder.orderId,
+      }
+    }, { status: 201 })
   } catch (error) {
     console.error('Error creating order:', error)
     return NextResponse.json(

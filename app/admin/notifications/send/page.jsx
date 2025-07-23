@@ -178,24 +178,27 @@ export default function SendNotification() {
                     </span>
                   </td>
                   <td className="p-3 border text-sm">
-                    {token.userId && token.user
-                      ? (
+                    {token.userId && token.user ? (
+                      <div>
                         <div>
-                          <div><b>Name:</b> {token.user.name || '-'}</div>
-                          <div><b>Email:</b> {token.user.email || '-'}</div>
-                          <div><b>Mobile:</b> {token.user.mobile || '-'}</div>
+                          <b>Name:</b> {token.user.name || '-'}
                         </div>
-                      )
-                      : <span className="text-gray-400">-</span>
-                    }
+                        <div>
+                          <b>Email:</b> {token.user.email || '-'}
+                        </div>
+                        <div>
+                          <b>Mobile:</b> {token.user.mobile || '-'}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="p-3 border text-sm">
                     {token.deviceInfo?.brand} {token.deviceInfo?.modelName}
                   </td>
                   <td className="p-3 border text-sm">
-                    {token.lastActiveAt
-                      ? new Date(token.lastActiveAt).toLocaleDateString()
-                      : ''}
+                    {token.lastActiveAt ? new Date(token.lastActiveAt).toLocaleDateString() : ''}
                   </td>
                   <td className="p-3 border">
                     <label className="relative inline-flex items-center cursor-pointer">
