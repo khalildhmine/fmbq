@@ -6,8 +6,8 @@
 
 // const API_URL =
 //   typeof window !== 'undefined' && window.location.hostname === 'localhost'
-//     ? 'http://localhost:3000'
-//     : 'http://localhost:3000'
+//     ? 'https://fmbq.vercel.app'
+//     : 'https://fmbq.vercel.app'
 
 // // --- FIX: Add /api/socketio as the socket path for Next.js custom serverless socket route ---
 // const SOCKET_CONFIG = {
@@ -365,8 +365,8 @@ import io from 'socket.io-client'
 
 const API_URL =
   typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:3000'
-    : 'http://localhost:3000'
+    ? 'https://fmbq.vercel.app'
+    : 'https://fmbq.vercel.app'
 
 const SOCKET_CONFIG = {
   transports: ['websocket'],

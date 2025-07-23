@@ -22,7 +22,7 @@ const SOCKET_CONFIG = {
 
 export const initSocket = () => {
   if (!socket) {
-    socket = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', SOCKET_CONFIG)
+    socket = io(process.env.NEXT_PUBLIC_APP_URL || 'https://fmbq.vercel.app', SOCKET_CONFIG)
 
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id)

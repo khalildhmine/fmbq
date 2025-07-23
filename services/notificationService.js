@@ -33,7 +33,10 @@ export function NotificationProvider({ children }) {
   useEffect(() => {
     console.log('Initializing socket connection...')
 
-    const newSocket = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', SOCKET_CONFIG)
+    const newSocket = io(
+      process.env.NEXT_PUBLIC_APP_URL || 'https://fmbq.vercel.app',
+      SOCKET_CONFIG
+    )
 
     newSocket.on('connect', () => {
       console.log('Socket connected:', newSocket.id)
