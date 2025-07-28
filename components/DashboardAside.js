@@ -43,6 +43,7 @@ import {
   Shirt,
   Video,
   Presentation,
+  ChartNoAxesColumnIcon,
 } from 'lucide-react'
 import { Box, IconButton, Tooltip as MuiTooltip, Slider, useTheme } from '@mui/material'
 
@@ -135,6 +136,12 @@ const menuItems = [
     label: 'Maison Adrar Perfumes',
     icon: ImageIcon,
     path: '/admin/maison-adrar',
+  },
+  {
+    id: 'Cart-Tracking',
+    label: 'Cart Tracking Per Users',
+    icon: ChartNoAxesColumnIcon,
+    path: '/admin/anonymous-carts',
   },
 ]
 

@@ -78,9 +78,8 @@ const userSchema = new mongoose.Schema(
 
     notificationsEnabled: {
       type: Boolean,
-      default: true,
+      default: false,
     },
-    // Keep both fields for backward compatibility
     expoPushToken: {
       type: String,
       default: null,
@@ -94,6 +93,10 @@ const userSchema = new mongoose.Schema(
         },
         message: props => `${props.value} is not a valid Expo push token`,
       },
+    },
+    pushTokens: {
+      type: [String],
+      default: [],
     },
     notificationSettings: {
       enabled: {

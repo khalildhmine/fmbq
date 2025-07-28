@@ -1,8 +1,8 @@
-import { Expo } from 'expo-server-sdk';
+import { Expo } from 'expo-server-sdk'
 
 // Create a new Expo SDK client
 // This is used to send push notifications
-const expo = new Expo();
+const expo = new Expo()
 
 /**
  * Send push notifications to users
@@ -12,14 +12,14 @@ const expo = new Expo();
  */
 export async function sendPushNotifications(pushTokens, message) {
   // Create the messages to send
-  const messages = [];
-  
+  const messages = []
+
   // Filter out invalid tokens
   for (let pushToken of pushTokens) {
     // Check that the token is valid
     if (!Expo.isExpoPushToken(pushToken)) {
-      console.error(`Push token ${pushToken} is not a valid Expo push token`);
-      continue;
+      console.error(`Push token ${pushToken} is not a valid Expo push token`)
+      continue
     }
 
     // Construct the message
@@ -27,26 +27,26 @@ export async function sendPushNotifications(pushTokens, message) {
       to: pushToken,
       sound: 'default',
       ...message,
-    });
+    })
   }
 
   // Send the messages
-  const chunks = expo.chunkPushNotifications(messages);
-  const tickets = [];
+  const chunks = expo.chunkPushNotifications(messages)
+  const tickets = []
 
   try {
     for (let chunk of chunks) {
       try {
-        const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-        tickets.push(...ticketChunk);
+        const ticketChunk = await expo.sendPushNotificationsAsync(chunk)
+        tickets.push(...ticketChunk)
       } catch (error) {
-        console.error('Error sending push notification chunk:', error);
+        console.error('Error sending push notification chunk:', error)
       }
     }
-    return tickets;
+    return tickets
   } catch (error) {
-    console.error('Error sending push notifications:', error);
-    return [];
+    console.error('Error sending push notifications:', error)
+    return []
   }
 }
 
@@ -57,8 +57,8 @@ export async function sendPushNotifications(pushTokens, message) {
  */
 export async function sendOrderConfirmationNotification(pushTokens, order) {
   if (!pushTokens || pushTokens.length === 0) {
-    console.log('No push tokens available for user');
-    return;
+    console.log('No push tokens available for user')
+    return
   }
 
   const message = {
@@ -69,7 +69,7 @@ export async function sendOrderConfirmationNotification(pushTokens, order) {
       orderId: order._id.toString(),
       orderNumber: order.orderId,
     },
-  };
+  }
 
-  return sendPushNotifications(pushTokens, message);
+  return sendPushNotifications(pushTokens, message)
 }

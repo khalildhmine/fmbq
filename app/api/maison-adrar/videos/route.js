@@ -43,31 +43,24 @@ export async function GET(request) {
     // Filter for published videos only
     filter.status = 'published'
 
-    console.log('Video filter:', JSON.stringify(filter))
-    console.log('Sort options:', sortBy, sortOrder)
-
-    // Build sort object
-    const sort = {}
-    sort[sortBy] = sortOrder === 'asc' ? 1 : -1
-
-    // Get total count for pagination
-    const total = await MaisonAdrarVideo.countDocuments(filter)
-    console.log(`Found ${total} videos matching criteria`)
-
-    // Fetch videos with pagination, filtering and sorting
+    // Fetch videos from the database
     const videos = await MaisonAdrarVideo.find(filter)
-      .sort(sort)
+      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
       .skip(skip)
       .limit(limit)
-      .lean()
-      .exec()
 
+    const total = await MaisonAdrarVideo.countDocuments(filter)
+
+    console.log('Video filter:', JSON.stringify(filter))
+    console.log('Sort options:', `${sortBy} ${sortOrder}`)
+    console.log(`Found ${total} videos matching criteria`)
     console.log(`Returning ${videos.length} videos for page ${page}`)
 
-    // Calculate pagination data
-    const totalPages = Math.ceil(total / limit)
-    const hasNextPage = page < totalPages
-    const hasPrevPage = page > 1
+    // Log the response being sent to the frontend
+    console.log('Response:', {
+      success: true,
+      data: { videos, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } },
+    })
 
     return NextResponse.json({
       success: true,
@@ -77,17 +70,12 @@ export async function GET(request) {
           total,
           page,
           limit,
-          totalPages,
-          hasNextPage,
-          hasPrevPage,
+          totalPages: Math.ceil(total / limit),
         },
       },
     })
   } catch (error) {
-    console.error('Error fetching Maison Adrar videos:', error)
-    return NextResponse.json(
-      { success: false, message: 'Failed to fetch videos', error: error.message },
-      { status: 500 }
-    )
+    console.error('Error fetching videos:', error)
+    return NextResponse.json({ success: false, message: 'Failed to fetch videos' }, { status: 500 })
   }
 }

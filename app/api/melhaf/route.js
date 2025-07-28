@@ -1,6 +1,8 @@
 import { connectToDatabase } from '@/helpers/db'
 import Melhaf from '@/models/melhaf'
 import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '../auth/[...nextauth]/route'
 
 export async function GET(req) {
   try {
@@ -73,6 +75,39 @@ export async function GET(req) {
       {
         status: 500,
       }
+    )
+  }
+}
+
+export async function POST(req) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.isAdmin) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized - Admin access required' },
+        { status: 401 }
+      )
+    }
+
+    await connectToDatabase()
+    const data = await req.json()
+
+    const melhaf = await Melhaf.create({
+      ...data,
+      createdBy: session.user.id
+    })
+
+    return NextResponse.json(
+      { success: true, data: melhaf },
+      { status: 201 }
+    )
+
+  } catch (error) {
+    console.error('Error in melhaf creation:', error)
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to create melhaf' },
+      { status: 500 }
     )
   }
 }

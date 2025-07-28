@@ -3,97 +3,128 @@ import { connectToDatabase } from '@/helpers/db'
 import User from '@/models/User'
 import { verifyAuth } from '@/lib/auth'
 
-export async function GET(request: Request) {
-  console.log('GET /api/notifications/settings')
+export async function PUT(request: Request) {
   try {
+    console.log('[NotificationSettings][PUT] Request received')
     const authResult = await verifyAuth(request)
-    if (!authResult.success) {
-      console.log('Unauthorized GET request')
+    console.log('[NotificationSettings][PUT] Auth result:', authResult)
+    if (!authResult.success || !authResult.id) {
+      console.warn('[NotificationSettings][PUT] Unauthorized access attempt')
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
     }
 
     await connectToDatabase()
-    console.log('Looking for user:', authResult.id)
+    console.log('[NotificationSettings][PUT] Connected to database')
 
-    const user = await User.findById(authResult.id).lean()
+    const body = await request.json()
+    console.log('[NotificationSettings][PUT] Request body:', body)
+
+    const user = await User.findById(authResult.id)
     if (!user) {
-      console.log('User not found:', authResult.id)
+      console.warn('[NotificationSettings][PUT] User not found:', authResult.id)
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
     }
 
-    let enabled = false
-    let expoPushToken = null
-
-    if (user.notificationSettings?.enabled === true) {
-      enabled = true
-      expoPushToken = user.notificationSettings.expoPushToken || null
+    if (body.enabled === false) {
+      // Prepare update for disabling notifications
+      var update = {
+        notificationSettings: {
+          enabled: false,
+          expoPushToken: null,
+          updatedAt: new Date(),
+        },
+        notificationsEnabled: false,
+        expoPushToken: null,
+        pushToken: null,
+      }
+    } else {
+      // Prepare update for enabling notifications
+      var update = {
+        notificationSettings: {
+          enabled: true,
+          expoPushToken: body.expoPushToken || null,
+          updatedAt: new Date(),
+        },
+        notificationsEnabled: true,
+        expoPushToken: body.expoPushToken || null,
+        pushToken: body.expoPushToken || null,
+      }
+      // Ensure pushTokens is always an array and add if not present
+      if (body.expoPushToken) {
+        update.$addToSet = { pushTokens: body.expoPushToken }
+      }
     }
 
-    console.log('Returning settings:', { enabled, expoPushToken })
-    return NextResponse.json({ success: true, data: { enabled, expoPushToken } })
+    // Update only the relevant fields, bypassing address validation
+    const savedUser = await User.findByIdAndUpdate(
+      authResult.id,
+      update,
+      { new: true }
+    )
+
+    if (!savedUser) {
+      console.warn('[NotificationSettings][PUT] User not found:', authResult.id)
+      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
+    }
+
+    console.log('[NotificationSettings][PUT] User saved:', {
+      id: savedUser._id,
+      notificationSettings: savedUser.notificationSettings,
+      notificationsEnabled: savedUser.notificationsEnabled,
+      expoPushToken: savedUser.expoPushToken,
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        enabled: savedUser.notificationSettings?.enabled === true,
+        expoPushToken: savedUser.notificationSettings?.expoPushToken || null,
+      },
+    })
   } catch (error) {
-    console.error('GET Error:', error)
+    console.error('[NotificationSettings][PUT] Error updating notification settings:', error)
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch notification settings' },
+      { success: false, message: error.message || 'Failed to update notification settings' },
       { status: 500 }
     )
   }
 }
 
-export async function PUT(request: Request) {
+export async function GET(request: Request) {
   try {
+    console.log('[NotificationSettings][GET] Request received')
     const authResult = await verifyAuth(request)
+    console.log('[NotificationSettings][GET] Auth result:', authResult)
     if (!authResult.success || !authResult.id) {
+      console.warn('[NotificationSettings][GET] Unauthorized access attempt')
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
     }
 
     await connectToDatabase()
-    const body = await request.json()
+    console.log('[NotificationSettings][GET] Connected to database')
 
-    console.log('Update notification settings:', {
-      userId: authResult.id,
-      settings: body,
-    })
+    // Explicitly type user as a single document or null
+    const user = await User.findById(authResult.id).lean() as
+      | (Record<string, any> & { notificationSettings?: any })
+      | null
 
-    // Find the user first
-    const user = await User.findById(authResult.id)
-    if (!user) {
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
+    console.log('[NotificationSettings][GET] User data:', user)
+
+    let enabled = false
+    let expoPushToken = null
+    if (user && user.notificationSettings) {
+      enabled = user.notificationSettings.enabled === true
+      expoPushToken = user.notificationSettings.expoPushToken || null
     }
 
-    // Use direct object update instead of the method if it's not available
-    try {
-      // Try using the method first
-      await user.updateNotificationSettings({
-        enabled: body.enabled,
-        expoPushToken: body.expoPushToken,
-      })
-    } catch (methodError) {
-      console.log('Method not available, falling back to direct update')
-      // Fallback to direct update
-      user.notificationSettings = {
-        enabled: body.enabled,
-        expoPushToken: body.expoPushToken,
-        updatedAt: new Date(),
-      }
-      user.notificationsEnabled = body.enabled
-      user.expoPushToken = body.expoPushToken
-      user.pushToken = body.expoPushToken
-      await user.save()
-    }
-
-    // Return the updated settings
     return NextResponse.json({
       success: true,
-      data: {
-        enabled: user.notificationSettings?.enabled === true,
-        expoPushToken: user.notificationSettings?.expoPushToken || user.expoPushToken || null,
-      },
+      data: { enabled, expoPushToken },
     })
   } catch (error) {
-    console.error('Error updating notification settings:', error)
+    console.error('[NotificationSettings][GET] Error fetching notification settings:', error)
     return NextResponse.json(
-      { success: false, message: 'Failed to update notification settings' },
+      { success: false, message: error.message || 'Failed to fetch notification settings' },
       { status: 500 }
     )
   }

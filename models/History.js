@@ -1,4 +1,6 @@
 import mongoose from 'mongoose'
+// Replace with direct Product model import
+import Product from './Product'
 
 const HistorySchema = new mongoose.Schema(
   {

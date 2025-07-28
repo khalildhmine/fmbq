@@ -38,7 +38,6 @@ const MaisonAdrarVideoSchema = new mongoose.Schema(
     likes: {
       type: Number,
       default: 0,
-      min: 0,
     },
     featured: {
       type: Boolean,
@@ -60,6 +59,12 @@ const MaisonAdrarVideoSchema = new mongoose.Schema(
       enum: ['draft', 'published', 'archived'],
       default: 'published',
     },
+    likedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   { timestamps: true }
 )

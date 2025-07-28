@@ -21,6 +21,10 @@ const MelhafSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    rating: {
+      averageScore: { type: Number, default: 0 },
+      totalReviews: { type: Number, default: 0 },
+    },
     promotion: {
       isActive: {
         type: Boolean,
@@ -43,6 +47,7 @@ const MelhafSchema = new mongoose.Schema(
       {
         url: String,
         public_id: String,
+        isMain: { type: Boolean, default: false },
       },
     ],
     sizes: [
@@ -54,6 +59,36 @@ const MelhafSchema = new mongoose.Schema(
         },
       },
     ],
+    features: [String],
+    materials: [String],
+    colors: [
+      {
+        name: String,
+        code: String,
+        images: [String],
+      },
+    ],
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'coming_soon'],
+      default: 'active',
+    },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    tags: [String],
+    views: {
+      type: Number,
+      default: 0,
+    },
+    specifications: {
+      weight: String,
+      dimensions: String,
+      fabric: String,
+      style: String,
+      occasion: String,
+    }
   },
   {
     timestamps: true,

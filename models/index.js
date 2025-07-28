@@ -1,3 +1,8 @@
+// Ensure Product is registered before History since History depends on it
+export { default as Product } from './Product'
+export { default as History } from './History'
+
+// Other exports can remain in any order
 export { default as Banner } from './Banner'
 export { default as Category } from './Category'
 export { default as Details } from './Details'
@@ -8,5 +13,3 @@ export { default as User } from './Users'
 export { default as Chat } from './Chat'
 export { default as Coupon } from './coupon.model'
 export { default as Brand } from './Brand'
-export { default as Product } from './Product'
-export { default as History } from './History'
