@@ -1,6 +1,35 @@
 import mongoose from 'mongoose'
 import basePlugin from './base_model'
 
+const cartItemSchema = new mongoose.Schema(
+  {
+    _id: { type: String }, // Changed from ObjectId to String
+    itemID: { type: String },
+    productID: { type: String, required: true },
+    baseProductId: { type: String },
+    quantity: { type: Number, required: true },
+    price: { type: Number, required: true },
+    originalPrice: { type: Number },
+    finalPrice: { type: Number },
+    discount: { type: Number, default: 0 },
+    name: { type: String, required: true },
+    title: { type: String },
+    image: { type: String },
+    images: [String],
+    color: {
+      name: String,
+      hashCode: String,
+    },
+    size: {
+      size: String,
+    },
+    isMelhaf: { type: Boolean, default: false },
+    model: { type: String, default: 'product' },
+    inStock: { type: Number },
+  },
+  { _id: false }
+)
+
 const OrderTimelineSchema = new mongoose.Schema({
   type: { type: String, required: true }, // 'status', 'note', 'payment', 'shipping'
   content: { type: String, required: true },
@@ -37,44 +66,7 @@ const OrderSchema = new mongoose.Schema(
       required: true,
       default: '', // Add a default value
     },
-    cart: [
-      {
-        productID: { type: String, required: true }, // Changed from ObjectId to String to handle composite IDs
-        baseProductId: {
-          type: mongoose.Types.ObjectId,
-          ref: 'Product',
-          required: true,
-        },
-        quantity: { type: Number, required: true },
-        price: { type: Number, required: true }, // Final price after discounts
-        originalPrice: { type: Number }, // Original price before discounts
-        discount: { type: Number, default: 0 },
-        name: { type: String, required: true },
-        image: { type: String, required: true },
-        color: {
-          id: { type: String, default: 'default' },
-          name: { type: String, default: 'Default' },
-          hashCode: { type: String, default: '#000000' },
-        },
-        size: {
-          id: { type: String, default: 'default' },
-          size: { type: String, default: 'One Size' },
-        },
-        isMelhaf: {
-          type: Boolean,
-          default: false,
-        },
-        model: {
-          type: String,
-          enum: ['product', 'melhaf'],
-          default: 'product',
-        },
-        variant: {
-          type: String,
-          required: false,
-        },
-      },
-    ],
+    cart: [cartItemSchema],
     items: [
       {
         productId: { type: String, required: true },
@@ -279,3 +271,11 @@ mongoose.models = {}
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema)
 export default Order
+
+// OrderSchema.plugin(basePlugin)
+
+// // Force mongoose to use this updated schema
+// mongoose.models = {}
+
+// const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema)
+// export default Order

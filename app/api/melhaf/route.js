@@ -1,112 +1,131 @@
-import { connectToDatabase } from '@/helpers/db'
-import Melhaf from '@/models/melhaf'
+// app/api/melhaf/route.js
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]/route'
+import { connectToDatabase } from '@/helpers/db'
+import Melhaf from '../../../models/melhaf'
+import slugify from 'slugify'
+import { z } from 'zod'
+
+// Validation schema for Melhaf data
+const MelhafSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  collection: z.string().min(1, 'Collection is required'),
+  description: z.string().optional(),
+  adFabric: z.boolean().default(false),
+  published: z.boolean().default(true),
+  targetAudience: z.string().default('Women'),
+  colorVariants: z
+    .array(
+      z.object({
+        colorName: z.string().min(1, 'Color name is required'),
+        images: z.array(z.string().url()).min(1, 'At least one image is required'),
+        stock: z.number().min(0, 'Stock must be non-negative'),
+        price: z.number().min(0, 'Price must be non-negative'),
+        sold: z.number().min(0).default(0),
+        views: z.number().min(0).default(0),
+      })
+    )
+    .min(1, 'At least one color variant is required'),
+  promotion: z
+    .object({
+      isActive: z.boolean().default(false),
+      discountType: z.enum(['percentage', 'fixed']).default('percentage'),
+      discountValue: z.number().min(0).default(0),
+      startDate: z.date().optional(),
+      endDate: z.date().optional(),
+    })
+    .optional(),
+  sizes: z
+    .array(
+      z.object({
+        size: z.string().min(1, 'Size is required'),
+        inStock: z.number().min(0, 'Stock must be non-negative'),
+      })
+    )
+    .optional(),
+})
 
 export async function GET(req) {
   try {
+    console.log('🔍 Starting GET request for melhafs...')
     await connectToDatabase()
 
     const { searchParams } = new URL(req.url)
-    console.log('Search params:', searchParams.toString())
-
     const page = parseInt(searchParams.get('page')) || 1
-    const limit = parseInt(searchParams.get('limit')) || 10
-    const search = searchParams.get('search') || ''
-    const type = searchParams.get('type') || ''
-    const hasDiscount = searchParams.get('hasDiscount') === 'true'
+    const limit = parseInt(searchParams.get('limit')) || 20
+    const skip = (page - 1) * limit
 
-    let query = {}
+    console.log(`📄 Fetching page ${page} with limit ${limit}`)
 
-    // Add search filter
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-      ]
-    }
+    const total = await Melhaf.countDocuments()
+    const melhafs = await Melhaf.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean()
 
-    // Add type filter
-    if (type) {
-      query.type = type
-    }
-
-    // Add discount filter
-    if (hasDiscount) {
-      query['promotion.isActive'] = true
-      query['promotion.discountValue'] = { $gt: 0 }
-      query['promotion.endDate'] = { $gt: new Date() }
-    }
-
-    console.log('MongoDB query:', query)
-
-    const [melhafs, total] = await Promise.all([
-      Melhaf.find(query)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),
-      Melhaf.countDocuments(query),
-    ])
-
-    console.log(`Found ${melhafs.length} melhafs`)
+    console.log(`✅ Found ${melhafs.length} melhafs`)
 
     return NextResponse.json({
       success: true,
-      data: {
-        melhafs,
-        pagination: {
-          total,
-          page,
-          limit,
-          pages: Math.ceil(total / limit),
-        },
+      data: melhafs,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
       },
     })
   } catch (error) {
-    console.error('Database error:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Failed to fetch melhafs',
-        error: error.message,
-      },
-      {
-        status: 500,
-      }
-    )
+    console.error('❌ Error fetching melhafs:', error)
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }
 }
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.isAdmin) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized - Admin access required' },
-        { status: 401 }
-      )
+    console.log('🚀 Starting Melhaf POST request...')
+    await connectToDatabase()
+    console.log('✅ Database connected')
+
+    const data = await req.json()
+    console.log('📄 Received data:', data)
+
+    // Generate slug from name (ensure fallback if name is missing)
+    const slug =
+      (data.name || '')
+        .toLowerCase()
+        .trim()
+        .replace(/[\s_]+/g, '-')
+        .replace(/[^\w\-]+/g, '')
+        .replace(/\-\-+/g, '-')
+        .replace(/^-+/, '')
+        .replace(/-+$/, '') || 'melhaf-' + Date.now()
+
+    console.log('🏷️ Generated slug:', slug)
+
+    // Prepare melhaf data with required fields
+    const melhafData = {
+      ...data,
+      slug, // Ensure slug is set
+      collectionName: data.collection, // Map collection to collectionName
+      colorVariants: Array.isArray(data.colorVariants)
+        ? data.colorVariants.map(({ _id, ...variant }) => variant)
+        : [],
     }
 
-    await connectToDatabase()
-    const data = await req.json()
+    console.log('💾 Creating Melhaf...')
+    const melhaf = new Melhaf(melhafData)
+    const savedMelhaf = await melhaf.save()
 
-    const melhaf = await Melhaf.create({
-      ...data,
-      createdBy: session.user.id
+    return NextResponse.json({
+      success: true,
+      data: savedMelhaf
     })
 
-    return NextResponse.json(
-      { success: true, data: melhaf },
-      { status: 201 }
-    )
-
   } catch (error) {
-    console.error('Error in melhaf creation:', error)
+    console.error('❌ Error:', error)
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create melhaf' },
+      { 
+        success: false, 
+        message: error.message || 'Failed to create melhaf',
+        errors: error.errors
+      },
       { status: 500 }
     )
   }
