@@ -34,7 +34,7 @@ export function NotificationProvider({ children }) {
     console.log('Initializing socket connection...')
 
     const newSocket = io(
-      process.env.NEXT_PUBLIC_APP_URL || 'http://192.168.1.52:3000',
+      process.env.NEXT_PUBLIC_APP_URL || 'http://192.168.100.5:3000',
       SOCKET_CONFIG
     )
 

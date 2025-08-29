@@ -13,6 +13,7 @@ import {
   FiSettings,
   FiChevronDown,
   FiChevronRight,
+  FiCreditCard,
 } from 'react-icons/fi'
 
 const MenuItem = ({ icon: Icon, title, href, isActive, hasSubMenu, isOpen, onClick, children }) => {
@@ -71,6 +72,15 @@ export const AdminSidebar = ({ isOpen, theme }) => {
               title="Orders"
               href="/admin/orders"
               isActive={pathname.startsWith('/admin/orders')}
+            />
+          </li>
+
+          <li>
+            <MenuItem
+              icon={FiCreditCard}
+              title="POS System"
+              href="/admin/pos"
+              isActive={pathname.startsWith('/admin/pos')}
             />
           </li>
 

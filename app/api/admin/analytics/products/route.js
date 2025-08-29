@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/helpers/db'
 
 import { Order, Product } from '@/models'
-import { verifyAuth } from '@/lib/auth'
+import { verifyAuth } from '@/lib/server-auth'
 
 export async function GET(request) {
   try {

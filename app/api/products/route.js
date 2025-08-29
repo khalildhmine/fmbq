@@ -575,6 +575,9 @@ export async function POST(request) {
     // Parse the request body
     const body = await request.json()
 
+    // Add logging for debugging
+    console.log('[Product POST] Received body:', JSON.stringify(body, null, 2))
+
     // Validate required fields
     if (!body.title || !body.price) {
       return NextResponse.json(
@@ -584,6 +587,11 @@ export async function POST(request) {
         },
         { status: 400 }
       )
+    }
+
+    // Ensure gender has a default value if missing or empty
+    if (!body.gender || body.gender === '') {
+      body.gender = 'men' // Default gender
     }
 
     // Format sizes data if present

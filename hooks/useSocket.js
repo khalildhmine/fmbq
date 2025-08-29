@@ -6,8 +6,8 @@
 
 // const API_URL =
 //   typeof window !== 'undefined' && window.location.hostname === 'localhost'
-//     ? 'http://192.168.1.52:3000'
-//     : 'http://192.168.1.52:3000'
+//     ? 'http://192.168.100.5:3000'
+//     : 'http://192.168.100.5:3000'
 
 // // --- FIX: Add /api/socketio as the socket path for Next.js custom serverless socket route ---
 // const SOCKET_CONFIG = {
@@ -365,8 +365,8 @@ import io from 'socket.io-client'
 
 const API_URL =
   typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://192.168.1.52:3000'
-    : 'http://192.168.1.52:3000'
+    ? 'http://192.168.100.5:3000'
+    : 'http://192.168.100.5:3000'
 
 const SOCKET_CONFIG = {
   transports: ['websocket'],

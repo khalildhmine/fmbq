@@ -31,7 +31,6 @@ import { Button } from '@/components/ui/button'
 import AddColors from '@/components/product/AddColors.jsx'
 import AddSizes from '@/components/product/AddSizes.jsx'
 import AddVariants from '@/components/product/AddVariants'
-import AddAttributes from '@/components/product/AddAttributes'
 import AddSpecifications from '@/components/product/AddSpecifications'
 import SelectCategories from '@/components/product/SelectCategories'
 import TextField from '@/components/common/TextField'
@@ -77,36 +76,22 @@ const tabListNames = [
     description: 'Organize product categories',
     required: true,
   },
-  // {
-  //   id: 5,
-  //   name: 'Product Variants',
-  //   icon: RefreshCw,
-  //   description: 'Add product variations',
-  //   required: false,
-  // },
-  // {
-  //   id: 6,
-  //   name: 'Attributes',
-  //   icon: Settings,
-  //   description: 'Product features and specs',
-  //   required: false,
-  // },
-  // {
-  //   id: 7,
-  //   name: 'Specifications',
-  //   icon: Package,
-  //   description: 'Technical specifications',
-  //   required: false,
-  // },
   {
-    id: 8,
+    id: 5,
+    name: 'Product Variants',
+    icon: RefreshCw,
+    description: 'Add product variations',
+    required: false,
+  },
+  {
+    id: 6, // Re-indexed from 7
     name: 'Target Gender',
     icon: Users,
     description: 'Select target audience',
     required: true,
   },
   {
-    id: 9,
+    id: 7, // Re-indexed from 8
     name: 'Sizes & Colors',
     icon: Palette,
     description: 'Available sizes and colors',
@@ -134,11 +119,10 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
       inStock: 0,
       description: '',
       discount: 0,
-      sizes: [],
-      colors: [],
+      sizes: [], // Now array of strings
+      colors: [], // Now array of { id, name, hashCode }
       gender: '',
       variants: [],
-      attributes: [],
       specifications: [],
       optionsType: '',
       category: [],
@@ -216,9 +200,27 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
         }
         break
 
-      case 8: // Gender
+      case 5: // Variants
+        if (values.variants && values.variants.length === 0) {
+          errors.variants = 'At least one variant is required'
+          isValid = false
+        }
+        break
+
+      case 6: // Gender (re-indexed)
         if (!values.gender) {
           errors.gender = 'Gender selection is required'
+          isValid = false
+        }
+        break
+
+      case 7: // Sizes & Colors (re-indexed)
+        if (values.sizes && values.sizes.length === 0) {
+          errors.sizes = 'At least one size is required'
+          isValid = false
+        }
+        if (values.colors && values.colors.length === 0) {
+          errors.colors = 'At least one color is required'
           isValid = false
         }
         break
@@ -288,16 +290,16 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
           selectedCategories.subCategory?._id || selectedCategories.subCategory,
           selectedCategories.leafCategory?._id || selectedCategories.leafCategory,
         ].filter(Boolean),
-        colors: Array.isArray(data.colors) ? data.colors : data.colors ? [data.colors] : [],
-        sizes: Array.isArray(data.sizes) ? data.sizes : data.sizes ? [data.sizes] : [],
+        colors: Array.isArray(data.colors) ? data.colors : [],
+        // If variants are used, sizes and colors should not be directly on the product
+        sizes: data.variants?.length > 0 ? [] : Array.isArray(data.sizes) ? data.sizes : [],
         variants: data.variants || [],
-        attributes: data.attributes || [],
         specifications: data.specifications || [],
         price: Number(data.price),
         inStock: Number(data.inStock || 0),
         discount: Number(data.discount || 0),
         optionsType:
-          data.sizes?.length > 0 && data.colors?.length > 0
+          data.variants?.length > 0
             ? 'both'
             : data.sizes?.length > 0
               ? 'size'
@@ -347,18 +349,12 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
           description: selectedProduct.description || '',
           discount: selectedProduct.discount || 0,
           sizes: Array.isArray(selectedProduct.sizes)
-            ? selectedProduct.sizes
-            : selectedProduct.sizes
-              ? [selectedProduct.sizes].filter(Boolean)
-              : [],
-          colors: Array.isArray(selectedProduct.colors)
-            ? selectedProduct.colors
-            : selectedProduct.colors
-              ? [selectedProduct.colors].filter(Boolean)
-              : [],
+            ? selectedProduct.sizes.map(s => s.size) // Map to array of strings
+            : [],
+          colors: Array.isArray(selectedProduct.colors) ? selectedProduct.colors : [], // Ensure colors is always an array of objects
           gender: selectedProduct.gender || '',
-          info: selectedProduct.info || [],
-          specification: selectedProduct.specification || [],
+          variants: selectedProduct.variants || [],
+          specifications: selectedProduct.specifications || '',
           optionsType: selectedProduct.optionsType || '',
         }
 
@@ -603,47 +599,12 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
                     <AddVariants
                       variants={watch('variants') || []}
                       onChange={variants => setValue('variants', variants)}
+                      productId={selectedProduct?._id || 'new-product'} // Pass product ID or a placeholder
                     />
                   </div>
                 )
 
-              // case 6: // Attributes
-              //   return (
-              //     <div>
-              //       <div className="mb-4">
-              //         <label className="block text-sm font-semibold text-gray-700 mb-2">
-              //           Product Attributes
-              //         </label>
-              //         <p className="text-sm text-gray-600">
-              //           Add product features and specifications (optional)
-              //         </p>
-              //       </div>
-              //       <AddAttributes
-              //         attributes={watch('attributes') || []}
-              //         onChange={attributes => setValue('attributes', attributes)}
-              //       />
-              //     </div>
-              //   )
-
-              case 7: // Specifications
-                return (
-                  <div>
-                    <div className="mb-4">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Technical Specifications
-                      </label>
-                      <p className="text-sm text-gray-600">
-                        Add detailed technical specifications (optional)
-                      </p>
-                    </div>
-                    <AddSpecifications
-                      specifications={watch('specifications') || []}
-                      onChange={specifications => setValue('specifications', specifications)}
-                    />
-                  </div>
-                )
-
-              case 8: // Gender
+              case 6: // Target Gender (was 7)
                 return (
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -667,7 +628,7 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
                   </div>
                 )
 
-              case 9: // Sizes & Colors
+              case 7: // Sizes & Colors (was 8)
                 return (
                   <div className="space-y-8">
                     <div>
@@ -816,7 +777,8 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
           </div>
 
           {/* Save Button */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
+          {/* Removed save button from sidebar to prevent premature submission */}
+          {/* <div className="mt-8 pt-6 border-t border-gray-200">
             <Button
               type="submit"
               onClick={handleSubmit(onSubmit)}
@@ -839,7 +801,7 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
             <p className="text-xs text-gray-500 text-center mt-2">
               Click save to {mode === 'edit' ? 'update' : 'create'} the product
             </p>
-          </div>
+          </div> */}
         </div>
 
         {/* Main Content */}

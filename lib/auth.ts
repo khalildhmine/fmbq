@@ -2,18 +2,24 @@ import { verify } from 'jsonwebtoken'
 import { cookies } from 'next/headers'
 
 export async function verifyAuth(request: Request) {
-  try {
-    // Get token from Authorization header
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '')
+  const cookieStore = cookies()
+  let token = null
 
-    // If no token in header, try cookies
+  // Get token from Authorization header
+  const authHeader = request.headers.get('authorization')
+  if (authHeader) {
+    token = authHeader.replace('Bearer ', '')
+  }
+
+  // If no token from header, try cookies
+  if (!token) {
+    const tokenFromCookie = await cookieStore.get('token')
+    token = tokenFromCookie?.value
+  }
+
+  try {
     if (!token) {
-      const cookieStore = cookies()
-      const tokenFromCookie = cookieStore.get('token')
-      if (!tokenFromCookie?.value) {
-        return { success: false, message: 'No token found' }
-      }
+      return { success: false, message: 'No token found' }
     }
 
     // Verify the token

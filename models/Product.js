@@ -14,6 +14,40 @@ const sizeSchema = new mongoose.Schema({
   },
 })
 
+const productVariantSchema = new mongoose.Schema(
+  {
+    id: String, // Client-side generated ID
+    size: {
+      type: String,
+    },
+    color: {
+      // Embedded color object with relevant fields
+      id: String,
+      name: String,
+      hashCode: String,
+    },
+    stock: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    SKU: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows null values but ensures uniqueness for non-null values
+    },
+    barcode: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    images: [String], // Specific images for this variant
+    price: Number, // Optional: variant specific price override
+    discount: Number, // Optional: variant specific discount override
+  },
+  { _id: false }
+) // Variants will be embedded, so no need for their own _id
+
 const productSchema = new mongoose.Schema(
   {
     title: {
@@ -59,6 +93,7 @@ const productSchema = new mongoose.Schema(
         images: [String],
       },
     ],
+    variants: [productVariantSchema], // Add variants field
     gender: {
       type: String,
       enum: ['men', 'women', 'unisex'],

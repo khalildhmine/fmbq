@@ -11,13 +11,16 @@ const AddColors = ({ colors = [], onChange }) => {
 
   const handleAddColor = () => {
     if (newColor.name.trim()) {
-      onChange?.([...colors, { ...newColor }])
+      onChange?.([
+        ...colors,
+        { ...newColor, id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}` },
+      ])
       setNewColor({ name: '', hashCode: '#bc203f' })
     }
   }
 
-  const handleRemoveColor = indexToRemove => {
-    const newColors = colors.filter((_, index) => index !== indexToRemove)
+  const handleRemoveColor = idToRemove => {
+    const newColors = colors.filter(color => color.id !== idToRemove)
     onChange?.(newColors)
   }
 
@@ -56,8 +59,8 @@ const AddColors = ({ colors = [], onChange }) => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-        {colors.map((color, index) => (
-          <div key={index} className="flex items-center p-3 border rounded-md bg-white">
+        {colors.map(color => (
+          <div key={color.id} className="flex items-center p-3 border rounded-md bg-white">
             <div
               className="w-8 h-8 rounded-full mr-3 flex-shrink-0"
               style={{ backgroundColor: color.hashCode }}
@@ -65,7 +68,7 @@ const AddColors = ({ colors = [], onChange }) => {
             <span className="font-medium text-gray-800 flex-1">{color.name}</span>
             <button
               type="button"
-              onClick={() => handleRemoveColor(index)}
+              onClick={() => handleRemoveColor(color.id)}
               className="text-gray-400 hover:text-red-500"
             >
               <X className="w-4 h-4" />

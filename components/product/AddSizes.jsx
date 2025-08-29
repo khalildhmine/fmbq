@@ -4,29 +4,28 @@ import { useState, useRef } from 'react'
 import { Plus, X } from 'lucide-react'
 
 const AddSizes = ({ sizes = [], onChange }) => {
-  const [inputValue, setInputValue] = useState('')
+  const [newSizeValue, setNewSizeValue] = useState('')
 
   const handleAddSize = () => {
-    const newSize = inputValue.trim()
+    const trimmedSize = newSizeValue.trim()
 
-    // Basic validation - just check if empty
-    if (!newSize) {
+    if (!trimmedSize) {
       alert('Please enter a size')
       return
     }
 
-    // Check for duplicates
-    if (sizes.includes(newSize)) {
+    // Check for duplicates based on size name only
+    if (sizes.includes(trimmedSize)) {
       alert('This size has already been added')
       return
     }
 
-    onChange?.([...sizes, newSize])
-    setInputValue('') // Clear input after adding
+    onChange?.([...sizes, trimmedSize])
+    setNewSizeValue('')
   }
 
-  const handleRemoveSize = indexToRemove => {
-    const newSizes = sizes.filter((_, index) => index !== indexToRemove)
+  const handleRemoveSize = sizeToRemove => {
+    const newSizes = sizes.filter(s => s !== sizeToRemove)
     onChange?.(newSizes)
   }
 
@@ -37,10 +36,10 @@ const AddSizes = ({ sizes = [], onChange }) => {
       <div className="flex items-center gap-x-2">
         <input
           type="text"
-          value={inputValue}
-          onChange={e => setInputValue(e.target.value)}
+          value={newSizeValue}
+          onChange={e => setNewSizeValue(e.target.value)}
           className="flex-1 border rounded-md px-3 py-2"
-          placeholder="Enter size (e.g., S, M, L, XL, 38, 40, 42)"
+          placeholder="Enter size (e.g., S, M, L, XL)"
           onKeyPress={e => {
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -59,13 +58,13 @@ const AddSizes = ({ sizes = [], onChange }) => {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-        {sizes.map((size, index) => (
-          <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+        {sizes.map(size => (
+          <div key={size} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
             <span className="font-medium">{size}</span>
             <button
               type="button"
-              onClick={() => handleRemoveSize(index)}
-              className="text-gray-400 hover:text-red-500"
+              onClick={() => handleRemoveSize(size)}
+              className="text-gray-400 hover:text-red-500 ml-2"
             >
               <X className="w-4 h-4" />
             </button>

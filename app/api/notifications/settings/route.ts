@@ -25,53 +25,47 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
     }
 
+    // Ensure notificationSettings subdocument exists
+    if (!user.notificationSettings) {
+      user.notificationSettings = { enabled: false, expoPushToken: null } as any
+    }
+
     if (body.enabled === false) {
-      // Prepare update for disabling notifications
-      var update = {
-        notificationSettings: {
-          enabled: false,
-          expoPushToken: null,
-          updatedAt: new Date(),
-        },
-        notificationsEnabled: false,
-        expoPushToken: null,
-        pushToken: null,
+      // Disable notifications
+      user.notificationSettings.enabled = false
+      user.notificationSettings.expoPushToken = null
+      user.notificationsEnabled = false
+      user.expoPushToken = null
+      user.pushToken = null
+      // Remove from pushTokens array if it exists
+      if (body.expoPushToken) {
+        user.pushTokens = user.pushTokens.filter((token: string) => token !== body.expoPushToken)
       }
     } else {
-      // Prepare update for enabling notifications
-      var update = {
-        notificationSettings: {
-          enabled: true,
-          expoPushToken: body.expoPushToken || null,
-          updatedAt: new Date(),
-        },
-        notificationsEnabled: true,
-        expoPushToken: body.expoPushToken || null,
-        pushToken: body.expoPushToken || null,
-      }
-      // Ensure pushTokens is always an array and add if not present
-      if (body.expoPushToken) {
-        update.$addToSet = { pushTokens: body.expoPushToken }
+      // Enable notifications
+      user.notificationSettings.enabled = true
+      user.notificationSettings.expoPushToken = body.expoPushToken || null
+      user.notificationsEnabled = true
+      user.expoPushToken = body.expoPushToken || null
+      user.pushToken = body.expoPushToken || null
+      // Add to pushTokens array if not already present
+      if (body.expoPushToken && !user.pushTokens.includes(body.expoPushToken)) {
+        user.pushTokens.push(body.expoPushToken)
       }
     }
 
-    // Update only the relevant fields, bypassing address validation
-    const savedUser = await User.findByIdAndUpdate(
-      authResult.id,
-      update,
-      { new: true }
-    )
+    // Mark notificationSettings as modified to ensure Mongoose saves nested changes
+    user.markModified('notificationSettings')
 
-    if (!savedUser) {
-      console.warn('[NotificationSettings][PUT] User not found:', authResult.id)
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
-    }
+    const savedUser = await user.save()
 
     console.log('[NotificationSettings][PUT] User saved:', {
       id: savedUser._id,
       notificationSettings: savedUser.notificationSettings,
       notificationsEnabled: savedUser.notificationsEnabled,
       expoPushToken: savedUser.expoPushToken,
+      pushToken: savedUser.pushToken,
+      pushTokens: savedUser.pushTokens,
     })
 
     return NextResponse.json({
@@ -81,7 +75,7 @@ export async function PUT(request: Request) {
         expoPushToken: savedUser.notificationSettings?.expoPushToken || null,
       },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[NotificationSettings][PUT] Error updating notification settings:', error)
     return NextResponse.json(
       { success: false, message: error.message || 'Failed to update notification settings' },
@@ -103,25 +97,34 @@ export async function GET(request: Request) {
     await connectToDatabase()
     console.log('[NotificationSettings][GET] Connected to database')
 
-    // Explicitly type user as a single document or null
-    const user = await User.findById(authResult.id).lean() as
-      | (Record<string, any> & { notificationSettings?: any })
-      | null
+    // Retrieve the user document without .lean() to ensure full Mongoose document behavior
+    const user = await User.findById(authResult.id)
 
-    console.log('[NotificationSettings][GET] User data:', user)
+    console.log('[NotificationSettings][GET] User data:', {
+      id: user?._id,
+      notificationSettings: user?.notificationSettings,
+      notificationsEnabled: user?.notificationsEnabled,
+      expoPushToken: user?.expoPushToken,
+      pushToken: user?.pushToken,
+      pushTokens: user?.pushTokens,
+    })
 
     let enabled = false
     let expoPushToken = null
     if (user && user.notificationSettings) {
       enabled = user.notificationSettings.enabled === true
       expoPushToken = user.notificationSettings.expoPushToken || null
+    } else if (user && user.notificationsEnabled !== undefined) {
+      // Fallback for older schema or if notificationSettings is missing
+      enabled = user.notificationsEnabled === true
+      expoPushToken = user.expoPushToken || user.pushToken || null
     }
 
     return NextResponse.json({
       success: true,
       data: { enabled, expoPushToken },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[NotificationSettings][GET] Error fetching notification settings:', error)
     return NextResponse.json(
       { success: false, message: error.message || 'Failed to fetch notification settings' },

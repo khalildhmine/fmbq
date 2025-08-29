@@ -367,3 +367,5 @@ function getTextColor(hexColor) {
 
 export default AddBrandModal
 
+
+

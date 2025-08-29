@@ -13,8 +13,8 @@ const anonymousCartSchema = new mongoose.Schema(
       email: { type: String, default: null },
       phone: { type: String, default: null },
       name: { type: String, default: null },
-      deviceOS: { type: String, default: null },     // <-- added device OS info
-      deviceModel: { type: String, default: null },  // <-- added device model info
+      deviceOS: { type: String, default: null }, // <-- added device OS info
+      deviceModel: { type: String, default: null }, // <-- added device model info
     },
     items: [
       {
@@ -38,6 +38,7 @@ const anonymousCartSchema = new mongoose.Schema(
           id: { type: String, required: false },
           name: { type: String, required: false },
         },
+        variantId: { type: String, required: false }, // Add variantId field
         action: {
           type: String,
           enum: ['add', 'remove'],

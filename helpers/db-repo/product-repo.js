@@ -125,6 +125,7 @@ const getItemDetail = async id => {
       .populate('categoryHierarchy.mainCategory')
       .populate('categoryHierarchy.subCategory')
       .populate('categoryHierarchy.leafCategory')
+      .populate('variants') // Populate variants
       // Important: Explicitly include sizes and colors in the selection
       .select('+sizes +colors +specification +features +description')
       .lean()

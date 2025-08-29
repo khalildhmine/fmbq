@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/db'
-import { verifyAuth } from '@/lib/auth'
+import { verifyAuth } from '@/lib/server-auth'
 import MaisonAdrarVideo from '@/models/MaisonAdrarVideo'
 import VideoLike from '@/models/VideoLike'
 import { isValidObjectId } from 'mongoose'

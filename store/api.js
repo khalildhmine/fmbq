@@ -6,7 +6,7 @@ const tagTypes = ['Brands', 'Brand', 'Products', 'Product', 'Categories']
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.52:3000/api',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://192.168.100.5:3000/api',
     credentials: 'include',
     prepareHeaders: (headers, { getState }) => {
       const token = getState().auth?.token

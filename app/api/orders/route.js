@@ -116,11 +116,13 @@ export async function POST(request) {
     console.log('Received order data:', body)
 
     // Generate an order ID if not provided
-    const orderId = body.orderId || `ORD-${Math.floor(Math.random() * 1000000)
-      .toString()
-      .padStart(6, '0')}-${Math.floor(Math.random() * 10000)
-      .toString()
-      .padStart(4, '0')}`
+    const orderId =
+      body.orderId ||
+      `ORD-${Math.floor(Math.random() * 1000000)
+        .toString()
+        .padStart(6, '0')}-${Math.floor(Math.random() * 10000)
+        .toString()
+        .padStart(4, '0')}`
 
     // Create a new order with all the fields from the request
     const order = new Order({
@@ -146,25 +148,28 @@ export async function POST(request) {
     // Send push notification to the user
     try {
       // Get the user's push tokens
-      const user = await User.findById(body.user);
+      const user = await User.findById(body.user)
       if (user && user.pushTokens && user.pushTokens.length > 0) {
-        await sendOrderConfirmationNotification(user.pushTokens, savedOrder);
-        console.log('Order confirmation notification sent to user');
+        await sendOrderConfirmationNotification(user.pushTokens, savedOrder)
+        console.log('Order confirmation notification sent to user')
       } else {
-        console.log('No push tokens found for user, notification not sent');
+        console.log('No push tokens found for user, notification not sent')
       }
     } catch (notificationError) {
       // Don't fail the order creation if notification fails
-      console.error('Error sending order notification:', notificationError);
+      console.error('Error sending order notification:', notificationError)
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        orderId: savedOrder._id,
-        orderNumber: savedOrder.orderId,
-      }
-    }, { status: 201 })
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          orderId: savedOrder._id,
+          orderNumber: savedOrder.orderId,
+        },
+      },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Error creating order:', error)
     return NextResponse.json(
