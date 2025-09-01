@@ -11,7 +11,7 @@ export async function GET(request, { params }) {
   try {
     await connectToDatabase()
 
-    const { id } = params
+    const { id } = await params // Await params
     console.log('🔍 Fetching product details for ID:', id)
 
     const result = await productRepo.getItemDetail(id)
@@ -31,6 +31,7 @@ export async function GET(request, { params }) {
     const { product } = result
     if (!product.sizes) product.sizes = []
     if (!product.colors) product.colors = []
+    if (!product.variants) product.variants = [] // Ensure variants array exists
 
     console.log('📦 Product found:', {
       id: product._id,
@@ -39,7 +40,9 @@ export async function GET(request, { params }) {
       brand: product.brand?._id,
       colors: product.colors?.length,
       sizes: product.sizes?.length,
+      variants: product.variants?.length, // Log variant count
     })
+    console.log('✨ Transformed product:', JSON.stringify(product, null, 2)) // Log full product object
 
     // Build query for similar products
     const similarQuery = {

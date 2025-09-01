@@ -127,7 +127,7 @@ const getItemDetail = async id => {
       .populate('categoryHierarchy.leafCategory')
       .populate('variants') // Populate variants
       // Important: Explicitly include sizes and colors in the selection
-      .select('+sizes +colors +specification +features +description')
+      .select('+sizes +colors +specification +features +description +variants') // Ensure variants are explicitly selected
       .lean()
 
     if (!product) {
@@ -135,31 +135,100 @@ const getItemDetail = async id => {
       return { notFound: true, error: 'Product not found' }
     }
 
-    // Transform sizes to ensure consistent structure
-    product.sizes = (product.sizes || []).map(size => ({
-      id: size._id || size.id,
-      size: size.size || size.name,
-      available: size.available !== false,
-      inStock: size.inStock || size.stock || 0,
-    }))
+    // --- Conditional population of sizes and colors based on optionsType and variants ---
+    const finalSizes = []
+    const finalColors = []
 
-    // Transform colors to ensure consistent structure
-    product.colors = (product.colors || []).map(color => ({
-      id: color._id || color.id,
-      name: color.name,
-      hashCode: color.hashCode || color.code,
-      available: color.available !== false,
-      inStock: color.inStock || color.stock || 0,
-    }))
+    console.log('PRODUCT OPTIONS TYPE:', product.optionsType)
+    console.log('VARIANTS FETCHED:', product.variants?.length, 'items')
+    product.variants?.forEach((v, index) => {
+      console.log(
+        `- Variant ${index + 1}: Size=${v.size}, Color=${v.color?.name}, Stock=${v.stock}, SKU=${v.SKU}`
+      )
+    })
 
-    // Debug log for sizes and colors
-    console.log('\n🎨 Product Options:')
+    if (product.optionsType === 'both' || product.optionsType === 'size') {
+      if (product.variants && product.variants.length > 0) {
+        // Derive sizes from variants
+        const uniqueSizesMap = new Map()
+        product.variants.forEach(variant => {
+          if (variant.size) {
+            const currentStock = uniqueSizesMap.get(variant.size)?.stock || 0
+            uniqueSizesMap.set(variant.size, {
+              size: variant.size,
+              stock: currentStock + variant.stock,
+            })
+          }
+        })
+        uniqueSizesMap.forEach(sizeObj => finalSizes.push(sizeObj))
+      } else if (product.sizes) {
+        // Fallback to top-level sizes if no variants but optionsType is size
+        product.sizes.forEach(size => {
+          finalSizes.push({
+            id: size._id || size.id,
+            size: size.size,
+            stock: size.stock || 0,
+          })
+        })
+      }
+    }
+
+    if (product.optionsType === 'both' || product.optionsType === 'color') {
+      if (product.variants && product.variants.length > 0) {
+        // Derive colors from variants (deduplicate by hashCode)
+        const uniqueColorsMap = new Map()
+        product.variants.forEach(variant => {
+          if (variant.color?.hashCode) {
+            const colorHashCode = variant.color.hashCode
+            const currentColor = uniqueColorsMap.get(colorHashCode) || {
+              ...variant.color,
+              _id: variant.color.id || variant.color._id || colorHashCode, // Ensure _id is set for consistency
+              stock: 0,
+            }
+            currentColor.stock += variant.stock
+            uniqueColorsMap.set(colorHashCode, currentColor)
+          }
+        })
+        uniqueColorsMap.forEach(colorObj => finalColors.push(colorObj))
+      } else if (product.colors) {
+        // Fallback to top-level colors if no variants but optionsType is color
+        product.colors.forEach(color => {
+          finalColors.push({
+            id: color._id || color.id,
+            name: color.name,
+            hashCode: color.hashCode || color.code,
+            stock: color.stock || 0,
+          })
+        })
+      }
+    }
+
+    // Ensure variants have _id field for frontend compatibility
+    if (product.variants && product.variants.length > 0) {
+      product.variants = product.variants.map(variant => {
+        if (!variant._id) {
+          variant._id = `${variant.size}-${variant.color?.id || variant.color?.name || 'default'}`
+        }
+        return variant
+      })
+    }
+
+    // Assign the derived sizes and colors back to the product object
+    product.sizes = finalSizes.sort((a, b) => String(a.size).localeCompare(String(b.size)))
+    product.colors = finalColors.sort((a, b) => a.name.localeCompare(b.name))
+
+    // Remove redundant `.select(...)` for these fields, as they are now conditionally populated
+    delete product.specification // Ensure these are not returned if not needed or derived differently
+    delete product.features
+    delete product.description
+
+    // Debug log for final sizes and colors
+    console.log('\n🎨 Final Product Options:')
     console.log('Sizes:', product.sizes.length, 'items')
-    product.sizes.forEach(s =>
-      console.log(`- ${s.size}: ${s.available ? 'Available' : 'Out of Stock'}`)
-    )
+    product.sizes.forEach(s => console.log(`- ${s.size}: Stock=${s.stock}`))
     console.log('Colors:', product.colors.length, 'items')
-    product.colors.forEach(c => console.log(`- ${c.name}: ${c.hashCode}`))
+    product.colors.forEach(c => console.log(`- ${c.name}: Hash=${c.hashCode}, Stock=${c.stock}`))
+    console.log('----------------------------------------')
 
     // Detailed logging of all product attributes
     console.log('🔍 PRODUCT DETAILS LOG:')
@@ -194,6 +263,14 @@ const getItemDetail = async id => {
     product.colors?.forEach(color => {
       console.log(
         `- Color: ${color.name}, ID: ${color.id}, Hash: ${color.hashCode}, Stock: ${color.stock}`
+      )
+    })
+
+    console.log('\n📌 Variants:') // New logging for variants
+    console.log(`Total Variants: ${product.variants?.length || 0}`)
+    product.variants?.forEach(variant => {
+      console.log(
+        `- Variant ID: ${variant._id}, Size: ${variant.size}, Color: ${variant.color?.name} (${variant.color?.hashCode}), Stock: ${variant.stock}, SKU: ${variant.SKU}`
       )
     })
 

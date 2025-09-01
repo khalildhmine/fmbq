@@ -1,10 +1,31 @@
 import { NextResponse } from 'next/server'
 import { connect } from '@/helpers/db'
 import { Order } from '@/models'
+import { getAuthToken } from '@/lib/server-auth' // Correct import for getAuthToken
+import jwt from 'jsonwebtoken' // Import jwt
+import { cookies } from 'next/headers'
 
 export async function GET(req) {
   try {
     console.log('Order list API: Starting request processing')
+
+    const cookieStore = cookies() // Get cookie store
+    const token = await getAuthToken(req, cookieStore) // Get token from request
+
+    if (!token) {
+      return NextResponse.json({ message: 'Unauthorized: No token provided' }, { status: 401 })
+    }
+
+    let userId
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET)
+      userId = decoded.id
+    } catch (tokenError) {
+      console.error('Order list API: Token verification failed:', tokenError)
+      return NextResponse.json({ message: 'Unauthorized: Invalid token' }, { status: 401 })
+    }
+
+    console.log(`Order list API: Authenticated user ID: ${userId}`)
 
     // Get query parameters
     const url = new URL(req.url)
@@ -17,8 +38,8 @@ export async function GET(req) {
     await connect()
     console.log('Order list API: Connected to database')
 
-    // Get orders with pagination
-    const orders = await Order.find({})
+    // Get orders with pagination, filtered by user
+    const orders = await Order.find({ user: userId }) // Filter by user ID
       .populate('user', '-password')
       .skip((page - 1) * page_size)
       .limit(page_size)
@@ -26,10 +47,17 @@ export async function GET(req) {
         createdAt: 'desc',
       })
 
-    // Count total orders for pagination
-    const ordersLength = await Order.countDocuments({})
+    // Count total orders for pagination, filtered by user
+    const ordersLength = await Order.countDocuments({ user: userId }) // Count filtered orders
 
-    console.log(`Order list API: Found ${orders.length} orders out of ${ordersLength} total`)
+    console.log(
+      `Order list API: Found ${orders.length} orders out of ${ordersLength} total for user ${userId}`
+    )
+
+    console.log(
+      'Order list API: Orders data before response:',
+      orders.map(o => ({ _id: o._id, orderId: o.orderId }))
+    ) // Add this line for debugging
 
     // Prepare response
     const result = {

@@ -261,65 +261,78 @@ const ProductsForm = ({ mode, selectedProduct, isLoadingUpdate, updateHandler, c
     }
   }
 
+  // Format product data for submission
+  const formatProductData = data => {
+    // Determine options type based on sizes and colors
+    const hasColors = data.colors && data.colors.length > 0
+    const hasSizes = data.sizes && data.sizes.length > 0
+    let optionsType = 'none'
+
+    if (hasColors && hasSizes) {
+      optionsType = 'both'
+    } else if (hasColors) {
+      optionsType = 'color'
+    } else if (hasSizes) {
+      optionsType = 'size'
+    }
+
+    // Format variants if using both colors and sizes
+    let variants = []
+    if (optionsType === 'both') {
+      variants = data.sizes.flatMap(size =>
+        data.colors.map(color => ({
+          id: `${size.id}-${color.id}`,
+          size: size.size,
+          color: {
+            id: color.id,
+            name: color.name,
+            hashCode: color.hashCode,
+          },
+          stock: 0,
+          price: data.price,
+          images: color.images || [],
+        }))
+      )
+    }
+
+    return {
+      ...data,
+      optionsType,
+      variants,
+      // Ensure sizes and colors are properly formatted
+      sizes: data.sizes.map(size => ({
+        id: size.id || `size-${Date.now()}-${Math.random()}`,
+        size: size.size,
+        stock: size.stock || 0,
+      })),
+      colors: data.colors.map(color => ({
+        id: color.id || `color-${Date.now()}-${Math.random()}`,
+        name: color.name,
+        hashCode: color.hashCode,
+        stock: color.stock || 0,
+        images: color.images || [],
+      })),
+    }
+  }
+
   // Form submission handler
   const onSubmit = async data => {
     try {
       setIsSubmitting(true)
-      setShowValidationErrors(true)
-
-      // Validate all required tabs before submission
-      const requiredTabs = tabListNames.filter(tab => tab.required)
-      for (const tab of requiredTabs) {
-        setActiveTab(tab.id)
-        if (!validateCurrentTab()) {
-          toast.error(`Please complete the ${tab.name} section`)
-          return
-        }
-      }
-
-      // Format the data for submission
-      const formData = {
-        ...data,
-        categoryHierarchy: {
-          mainCategory: selectedCategories.mainCategory?._id || selectedCategories.mainCategory,
-          subCategory: selectedCategories.subCategory?._id || selectedCategories.subCategory,
-          leafCategory: selectedCategories.leafCategory?._id || selectedCategories.leafCategory,
-        },
-        category: [
-          selectedCategories.mainCategory?._id || selectedCategories.mainCategory,
-          selectedCategories.subCategory?._id || selectedCategories.subCategory,
-          selectedCategories.leafCategory?._id || selectedCategories.leafCategory,
-        ].filter(Boolean),
-        colors: Array.isArray(data.colors) ? data.colors : [],
-        // If variants are used, sizes and colors should not be directly on the product
-        sizes: data.variants?.length > 0 ? [] : Array.isArray(data.sizes) ? data.sizes : [],
-        variants: data.variants || [],
-        specifications: data.specifications || [],
-        price: Number(data.price),
-        inStock: Number(data.inStock || 0),
-        discount: Number(data.discount || 0),
-        optionsType:
-          data.variants?.length > 0
-            ? 'both'
-            : data.sizes?.length > 0
-              ? 'size'
-              : data.colors?.length > 0
-                ? 'color'
-                : 'none',
-      }
+      const formattedData = formatProductData(data)
 
       if (mode === 'edit') {
-        await updateHandler(formData)
+        await updateHandler(formattedData)
         toast.success('Product updated successfully!')
       } else {
-        await createHandler(formData)
+        await createHandler(formattedData)
         toast.success('Product created successfully!')
       }
 
       localStorage.removeItem(FORM_STORAGE_KEY)
     } catch (error) {
       console.error('Form submission error:', error)
-      toast.error(error.message || `Failed to ${mode} product`)
+      toast.error(error.message || 'Failed to save product')
     } finally {
       setIsSubmitting(false)
     }

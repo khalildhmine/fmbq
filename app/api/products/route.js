@@ -202,6 +202,80 @@ const createProduct = apiHandler(
         body.colors = []
       }
 
+      // Handle variants if present
+      if (body.variants && Array.isArray(body.variants)) {
+        body.variants = body.variants.map(variant => {
+          // Ensure variant has an _id
+          if (!variant._id) {
+            variant._id = new ObjectId().toString()
+          }
+          // Ensure color in variant has an id
+          if (variant.color && !variant.color.id) {
+            variant.color.id = new ObjectId().toString()
+          }
+          return variant
+        })
+        // If variants are provided, clear top-level sizes and colors
+        body.sizes = []
+        body.colors = []
+        // Also ensure inStock is sum of variant stocks if variants are used
+        body.inStock = body.variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+        body.optionsType = 'both' // If variants exist, optionsType is 'both'
+      } else {
+        // If no variants, process top-level sizes and colors with stock information
+        if (body.sizes && Array.isArray(body.sizes)) {
+          body.sizes = body.sizes.map(size => {
+            if (!size) return { size: 'Default', stock: 0 }
+            // Ensure size has proper structure with stock
+            return {
+              id: size.id || new ObjectId().toString(),
+              size: size.size || 'Default',
+              stock: size.stock || 0,
+            }
+          })
+        } else {
+          body.sizes = []
+        }
+
+        if (body.colors && Array.isArray(body.colors)) {
+          body.colors = body.colors.map(color => {
+            if (!color)
+              return {
+                id: new ObjectId().toString(),
+                name: 'Default',
+                hashCode: '#000000',
+                stock: 0,
+              }
+            return {
+              id: color.id || new ObjectId().toString(),
+              name: color.name || 'Default',
+              hashCode: color.hashCode || '#000000',
+              stock: color.stock || 0,
+            }
+          })
+        } else {
+          body.colors = []
+        }
+
+        // Set optionsType based on top-level sizes/colors
+        if (body.sizes && body.sizes.length > 0 && body.colors && body.colors.length > 0) {
+          body.optionsType = 'both'
+        } else if (body.sizes && body.sizes.length > 0) {
+          body.optionsType = 'size'
+        } else if (body.colors && body.colors.length > 0) {
+          body.optionsType = 'color'
+        } else {
+          body.optionsType = 'none'
+        }
+
+        // Calculate inStock from top-level sizes if no variants
+        if (body.sizes && body.sizes.length > 0) {
+          body.inStock = body.sizes.reduce((sum, s) => sum + (s.stock || 0), 0)
+        } else if (!body.inStock) {
+          body.inStock = 0
+        }
+      }
+
       // Fix specification - ensure they have titles
       if (body.specification && Array.isArray(body.specification)) {
         body.specification = body.specification.map(spec => {
@@ -223,10 +297,13 @@ const createProduct = apiHandler(
 
       // Set default values for other required fields
       if (!body.price) body.price = 0
-      if (!body.inStock) body.inStock = 0
+      // if (!body.inStock) body.inStock = 0 // Handled above by variant logic
       if (!body.gender) body.gender = 'men'
       if (!body.rating) body.rating = 0
       if (!body.numReviews) body.numReviews = 0
+
+      // Log variants before saving
+      console.log('[Product POST] Variants before saving:', JSON.stringify(body.variants, null, 2))
 
       // Use the productRepo instead of direct MongoDB access
       const result = await productRepo.create(body)
@@ -262,21 +339,236 @@ const createProduct = apiHandler(
   {
     isJwt: true,
     identity: 'admin',
-    schema: joi.object({
-      title: joi.string().required(),
-      price: joi.number(),
-      category: joi.array(),
-      images: joi.array(),
-      info: joi.array(),
-      specification: joi.array(),
-      inStock: joi.number(),
-      description: joi.string().allow(''),
-      discount: joi.number(),
-      sizes: joi.array(),
-      colors: joi.array(),
-      category_levels: joi.object(),
-      gender: joi.string().allow('men', 'women', 'kids', ''),
-    }),
+    schema: joi
+      .object({
+        title: joi.string().required(),
+        price: joi.number(),
+        category: joi.array(),
+        images: joi.array(),
+        info: joi.array(),
+        specification: joi.array(),
+        inStock: joi.number(),
+        description: joi.string().allow(''),
+        discount: joi.number(),
+        sizes: joi.array(),
+        colors: joi.array(),
+        category_levels: joi.object(),
+        gender: joi.string().allow('men', 'women', 'kids', ''),
+      })
+      .unknown(true), // Allow unknown fields like variants to be passed
+  }
+)
+
+// PUT (update) a product by ID
+export const updateProduct = apiHandler(
+  async req => {
+    try {
+      const body = await req.json()
+      const { id } = getQuery(req) // Assuming ID is in query params for PUT
+
+      if (!id) {
+        return setJson({ success: false, message: 'Product ID is required for update' }, 400)
+      }
+
+      console.log('[Product PUT] Received body for ID:', id, JSON.stringify(body, null, 2))
+
+      // Similar data validation and fixing as in POST
+      if (!body.slug) {
+        body.slug =
+          body.title
+            ?.toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9-]/g, '') || ''
+      }
+
+      if (body.images && Array.isArray(body.images)) {
+        body.images = body.images.map(img => {
+          if (img.url) return img
+
+          if (typeof img === 'string') {
+            return { url: img, alt: '', primary: false }
+          }
+
+          return img
+        })
+      }
+
+      if (!body.categoryHierarchy || !body.categoryHierarchy.mainCategory) {
+        if (body.category && body.category.length > 0 && body.category[0]) {
+          body.categoryHierarchy = {
+            mainCategory: body.category[0],
+            subCategory: body.category[1] || null,
+            leafCategory: body.category[2] || null,
+          }
+        } else {
+          body.categoryHierarchy = {
+            mainCategory: null,
+            subCategory: null,
+            leafCategory: null,
+          }
+        }
+      }
+
+      if (body.colors && Array.isArray(body.colors)) {
+        body.colors = body.colors.map(color => {
+          if (!color) return { id: new ObjectId().toString(), name: 'Default', hashCode: '#000000' }
+
+          if (!color.id) {
+            return { ...color, id: new ObjectId().toString() }
+          }
+          return color
+        })
+      } else {
+        body.colors = []
+      }
+
+      // Handle variants if present
+      if (body.variants && Array.isArray(body.variants)) {
+        body.variants = body.variants.map(variant => {
+          if (!variant._id) {
+            variant._id = new ObjectId().toString()
+          }
+          if (variant.color && !variant.color.id) {
+            variant.color.id = new ObjectId().toString()
+          }
+          return variant
+        })
+        body.sizes = []
+        body.colors = []
+        body.inStock = body.variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+        body.optionsType = 'both'
+      } else {
+        // If no variants, process top-level sizes and colors with stock information
+        if (body.sizes && Array.isArray(body.sizes)) {
+          body.sizes = body.sizes.map(size => {
+            if (!size) return { size: 'Default', stock: 0 }
+            // Ensure size has proper structure with stock
+            return {
+              id: size.id || new ObjectId().toString(),
+              size: size.size || 'Default',
+              stock: size.stock || 0,
+            }
+          })
+        } else {
+          body.sizes = []
+        }
+
+        if (body.colors && Array.isArray(body.colors)) {
+          body.colors = body.colors.map(color => {
+            if (!color)
+              return {
+                id: new ObjectId().toString(),
+                name: 'Default',
+                hashCode: '#000000',
+                stock: 0,
+              }
+            return {
+              id: color.id || new ObjectId().toString(),
+              name: color.name || 'Default',
+              hashCode: color.hashCode || '#000000',
+              stock: color.stock || 0,
+            }
+          })
+        } else {
+          body.colors = []
+        }
+
+        // Set optionsType based on top-level sizes/colors
+        if (body.sizes && body.sizes.length > 0 && body.colors && body.colors.length > 0) {
+          body.optionsType = 'both'
+        } else if (body.sizes && body.sizes.length > 0) {
+          body.optionsType = 'size'
+        } else if (body.colors && body.colors.length > 0) {
+          body.optionsType = 'color'
+        } else {
+          body.optionsType = 'none'
+        }
+
+        // Calculate inStock from top-level sizes if no variants
+        if (body.sizes && body.sizes.length > 0) {
+          body.inStock = body.sizes.reduce((sum, s) => sum + (s.stock || 0), 0)
+        } else if (!body.inStock) {
+          body.inStock = 0
+        }
+      }
+
+      // Fix specification - ensure they have titles
+      if (body.specification && Array.isArray(body.specification)) {
+        body.specification = body.specification.map(spec => {
+          if (!spec) return { title: 'Specification', value: '' }
+
+          if (!spec.title) {
+            return { ...spec, title: 'Specification' }
+          }
+          return spec
+        })
+      } else {
+        body.specification = []
+      }
+
+      // Fix info array
+      if (!body.info || !Array.isArray(body.info)) {
+        body.info = []
+      }
+
+      // Set default values for other required fields
+      if (!body.price) body.price = 0
+      if (!body.gender) body.gender = 'men'
+      if (!body.rating) body.rating = 0
+      if (!body.numReviews) body.numReviews = 0
+
+      // Log variants before updating
+      console.log('[Product PUT] Variants before updating:', JSON.stringify(body.variants, null, 2))
+
+      const result = await productRepo.update(id, body)
+
+      return setJson({
+        success: true,
+        message: 'Product updated successfully',
+        id: result?._id?.toString() || 'unknown',
+      })
+    } catch (error) {
+      console.error('Product update error:', error)
+
+      let errorMessage = 'Failed to update product'
+      if (error.errors) {
+        errorMessage = Object.keys(error.errors)
+          .map(key => `${key}: ${error.errors[key].message}`)
+          .join('; ')
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+
+      return setJson(
+        {
+          success: false,
+          status: 'error',
+          message: errorMessage,
+        },
+        500
+      )
+    }
+  },
+  {
+    isJwt: true,
+    identity: 'admin',
+    schema: joi
+      .object({
+        title: joi.string().required(),
+        price: joi.number(),
+        category: joi.array(),
+        images: joi.array(),
+        info: joi.array(),
+        specification: joi.array(),
+        inStock: joi.number(),
+        description: joi.string().allow(''),
+        discount: joi.number(),
+        sizes: joi.array(),
+        colors: joi.array(),
+        category_levels: joi.object(),
+        gender: joi.string().allow('men', 'women', 'kids', ''),
+      })
+      .unknown(true),
   }
 )
 
@@ -377,7 +669,10 @@ export async function GET(request) {
       .sort(sortOptions)
       .skip(skip)
       .limit(limit)
-      .populate('brand')
+      .select(
+        '_id title name price discount images brand colors.name colors.hashCode sizes.size inStock sold'
+      ) // Added projection
+      .populate({ path: 'brand', select: '_id name logo' }) // Limit populated fields
       .lean()
 
     // Get total count
@@ -568,78 +863,11 @@ async function getFacets(baseFilter) {
 }
 
 export async function POST(request) {
-  try {
-    // Connect to database
-    await connectToDatabase()
+  return createProduct(request)
+}
 
-    // Parse the request body
-    const body = await request.json()
-
-    // Add logging for debugging
-    console.log('[Product POST] Received body:', JSON.stringify(body, null, 2))
-
-    // Validate required fields
-    if (!body.title || !body.price) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Title and price are required',
-        },
-        { status: 400 }
-      )
-    }
-
-    // Ensure gender has a default value if missing or empty
-    if (!body.gender || body.gender === '') {
-      body.gender = 'men' // Default gender
-    }
-
-    // Format sizes data if present
-    if (body.sizes) {
-      body.sizes = body.sizes.map(size => ({
-        ...size,
-        size: size.size || 'ONE SIZE', // Provide default size
-        stock: Number(size.stock || 0),
-      }))
-    }
-
-    // Create product instance
-    const product = new Product(body)
-
-    // Save to database
-    await product.save()
-
-    // Return success response
-    return NextResponse.json({
-      success: true,
-      message: 'Product created successfully',
-      data: product,
-    })
-  } catch (error) {
-    console.error('Product creation error:', error)
-
-    // Determine if it's a validation error
-    if (error.name === 'ValidationError') {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Validation error',
-          errors: Object.values(error.errors).map(err => err.message),
-        },
-        { status: 400 }
-      )
-    }
-
-    // General error
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Failed to create product',
-        error: error.message,
-      },
-      { status: 500 }
-    )
-  }
+export async function PUT(request) {
+  return updateProduct(request)
 }
 
 export const dynamic = 'force-dynamic'
