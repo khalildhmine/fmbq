@@ -20,7 +20,7 @@ const addressSchema = joi.object({
 
 // Helper to get user ID from request
 const getUserIdFromRequest = req => {
-  const userId = req.headers.get('userid') || req.headers.get('x-user-id')
+  const userId = req.headers.get('userid')
   if (!userId) {
     console.log('No user ID found in headers')
     return null

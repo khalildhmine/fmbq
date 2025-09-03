@@ -714,7 +714,7 @@ function buildProductFilter(query) {
 
   // Handle category
   const categoryId = query.category || query.categories
-  if (categoryId && categoryId !== 'null' && categoryId !== 'undefined') {
+  if (categoryId && categoryId !== 'null' && categoryId !== 'undefined' && categoryId !== 'all') {
     filter.$or = [
       { category: categoryId },
       { 'categoryHierarchy.mainCategory': categoryId },
